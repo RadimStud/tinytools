@@ -1,12 +1,16 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import {
+  redirect,
+} from "next/navigation";
 
 import type {
   ToolPlatform,
 } from "@/modules/tools/domain/tool";
 
-import { services } from "@/server/services";
+import {
+  services,
+} from "@/server/services";
 
 const supportedPlatforms:
   ToolPlatform[] = [
@@ -15,21 +19,39 @@ const supportedPlatforms:
     "linux",
   ];
 
+function fail(
+  message: string,
+): never {
+  redirect(
+    `/publish?error=${encodeURIComponent(message)}`,
+  );
+}
+
 export async function publishToolDraft(
   formData: FormData,
 ) {
+  const appUser =
+    await services.auth
+      .syncCurrentUser();
+
+  if (!appUser) {
+    redirect(
+      "/login",
+    );
+  }
+
   const name =
     String(
       formData.get("name") ??
         "",
-    );
+    ).trim();
 
   const shortDescription =
     String(
       formData.get(
         "shortDescription",
       ) ?? "",
-    );
+    ).trim();
 
   const rawPrice =
     Number(
@@ -46,20 +68,70 @@ export async function publishToolDraft(
         ) === "on",
     );
 
-  const tool =
-    await services.publishing.createDraft({
-      name,
-      shortDescription,
-      priceEuros:
-        Number.isFinite(
+  if (
+    name.length < 2
+  ) {
+    fail(
+      "Tool name must have at least 2 characters.",
+    );
+  }
+
+  if (
+    shortDescription.length <
+    10
+  ) {
+    fail(
+      "Description must have at least 10 characters.",
+    );
+  }
+
+  if (
+    platforms.length === 0
+  ) {
+    fail(
+      "Select at least one platform.",
+    );
+  }
+
+  if (
+    !Number.isFinite(
+      rawPrice,
+    ) ||
+    rawPrice < 0
+  ) {
+    fail(
+      "Price must be zero or greater.",
+    );
+  }
+
+  try {
+    await services.publishing
+      .createDraft({
+        ownerId:
+          appUser.id,
+
+        name,
+
+        shortDescription,
+
+        priceEuros:
           rawPrice,
-        )
-          ? rawPrice
-          : 0,
-      platforms,
-    });
+
+        platforms,
+      });
+  }
+  catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Could not create tool.";
+
+    fail(
+      message,
+    );
+  }
 
   redirect(
-    `/publish/success?slug=${encodeURIComponent(tool.slug)}`,
+    "/dashboard?created=1",
   );
 }

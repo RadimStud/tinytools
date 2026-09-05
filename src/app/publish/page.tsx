@@ -1,25 +1,66 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
-import { publishToolDraft } from "./actions";
+import {
+  services,
+} from "@/server/services";
 
-export default function PublishPage() {
+import {
+  publishToolDraft,
+} from "./actions";
+
+type PublishPageProps = {
+  searchParams: Promise<{
+    error?: string;
+  }>;
+};
+
+export default async function PublishPage({
+  searchParams,
+}: PublishPageProps) {
+  const appUser =
+    await services.auth
+      .syncCurrentUser();
+
+  if (!appUser) {
+    redirect(
+      "/login",
+    );
+  }
+
+  const {
+    error,
+  } = await searchParams;
+
   return (
     <main className="min-h-screen bg-neutral-950 px-6 py-16 text-neutral-100">
       <div className="mx-auto max-w-3xl">
-        <Link
-          href="/"
-          className="text-sm text-neutral-500 hover:text-neutral-300"
-        >
-          ← TinyTools
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link
+            href="/dashboard"
+            className="text-sm text-neutral-500 hover:text-neutral-300"
+          >
+            ← Dashboard
+          </Link>
+
+          <span className="text-sm text-neutral-600">
+            {appUser.displayName}
+          </span>
+        </div>
 
         <h1 className="mt-8 text-4xl font-semibold">
           Publish a tool
         </h1>
 
         <p className="mt-3 text-neutral-400">
-          This MVP stores submissions as drafts. Authentication and file upload come later.
+          Create a draft. File upload and review will be added next.
         </p>
+
+        {error ? (
+          <div className="mt-6 rounded-xl border border-red-900 bg-red-950/30 p-4 text-sm text-red-300">
+            {error}
+          </div>
+        ) : null}
 
         <form
           action={publishToolDraft}
@@ -111,6 +152,10 @@ export default function PublishPage() {
                 Linux
               </label>
             </div>
+
+            <p className="mt-2 text-xs text-neutral-600">
+              Select at least one.
+            </p>
           </fieldset>
 
           <button

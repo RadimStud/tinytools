@@ -7,6 +7,7 @@ import type {
 } from "../repositories/tool-publishing-repository";
 
 type CreateDraftInput = {
+  ownerId: string;
   name: string;
   shortDescription: string;
   priceEuros: number;
@@ -47,7 +48,8 @@ export class ToolPublishingService {
       input.name.trim();
 
     const shortDescription =
-      input.shortDescription.trim();
+      input.shortDescription
+        .trim();
 
     if (
       name.length < 2
@@ -58,7 +60,8 @@ export class ToolPublishingService {
     }
 
     if (
-      shortDescription.length < 10
+      shortDescription.length <
+      10
     ) {
       throw new Error(
         "Description is too short.",
@@ -74,14 +77,17 @@ export class ToolPublishingService {
       );
     }
 
-    const slug =
+    const baseSlug =
       slugify(name);
 
-    if (!slug) {
+    if (!baseSlug) {
       throw new Error(
         "Could not generate tool slug.",
       );
     }
+
+    const slug =
+      `${baseSlug}-${crypto.randomUUID().slice(0, 8)}`;
 
     const priceCents =
       Math.max(
@@ -92,13 +98,21 @@ export class ToolPublishingService {
         ),
       );
 
-    return this.repository.createDraft({
-      name,
-      slug,
-      shortDescription,
-      priceCents,
-      platforms:
-        input.platforms,
-    });
+    return this.repository
+      .createDraft({
+        ownerId:
+          input.ownerId,
+
+        name,
+
+        slug,
+
+        shortDescription,
+
+        priceCents,
+
+        platforms:
+          input.platforms,
+      });
   }
 }

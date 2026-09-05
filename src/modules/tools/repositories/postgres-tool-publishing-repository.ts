@@ -1,4 +1,5 @@
 import { db } from "@/infrastructure/db/db";
+
 import {
   toolPlatforms,
   tools,
@@ -19,22 +20,33 @@ export class PostgresToolPublishingRepository
       await db
         .insert(tools)
         .values({
+          ownerId:
+            input.ownerId,
+
           name:
             input.name,
+
           slug:
             input.slug,
+
           shortDescription:
             input.shortDescription,
+
           priceCents:
             input.priceCents,
+
           currency:
             "EUR",
+
           status:
             "draft",
         })
         .returning({
-          id: tools.id,
-          slug: tools.slug,
+          id:
+            tools.id,
+
+          slug:
+            tools.slug,
         });
 
     const tool =
@@ -51,12 +63,15 @@ export class PostgresToolPublishingRepository
       0
     ) {
       await db
-        .insert(toolPlatforms)
+        .insert(
+          toolPlatforms,
+        )
         .values(
           input.platforms.map(
             (platform) => ({
               toolId:
                 tool.id,
+
               platform,
             }),
           ),

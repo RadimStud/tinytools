@@ -1,11 +1,21 @@
 import Link from "next/link";
 
 import { ToolCard } from "@/modules/tools/components/tool-card";
-import { services } from "@/server/services";
+
+import {
+  services,
+} from "@/server/services";
 
 export default async function Home() {
-  const tools =
-    await services.tools.getTools();
+  const [
+    tools,
+    authUser,
+  ] =
+    await Promise.all([
+      services.tools.getTools(),
+      services.auth
+        .getAuthenticatedUser(),
+    ]);
 
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100">
@@ -24,12 +34,30 @@ export default async function Home() {
                 Request tool
               </Link>
 
-              <Link
-                href="/publish"
-                className="rounded-xl bg-neutral-100 px-4 py-2 text-sm font-medium text-neutral-950"
-              >
-                Publish
-              </Link>
+              {authUser ? (
+                <Link
+                  href="/dashboard"
+                  className="rounded-xl bg-neutral-100 px-4 py-2 text-sm font-medium text-neutral-950"
+                >
+                  Dashboard
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    className="rounded-xl border border-neutral-800 px-4 py-2 text-sm text-neutral-300"
+                  >
+                    Sign in
+                  </Link>
+
+                  <Link
+                    href="/signup"
+                    className="rounded-xl bg-neutral-100 px-4 py-2 text-sm font-medium text-neutral-950"
+                  >
+                    Create account
+                  </Link>
+                </>
+              )}
             </div>
           </nav>
 

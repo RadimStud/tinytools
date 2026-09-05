@@ -3,6 +3,7 @@ import type {
 } from "../domain/tool";
 
 export type PublishToolInput = {
+  ownerId: string;
   name: string;
   slug: string;
   shortDescription: string;
