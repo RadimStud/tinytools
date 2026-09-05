@@ -7,8 +7,16 @@ export type Tool = {
   id: string;
   slug: string;
   name: string;
-  shortDescription: string;
-  platforms: ToolPlatform[];
-  priceCents: number;
-  currency: "EUR";
+
+  shortDescription:
+    string;
+
+  platforms:
+    ToolPlatform[];
+
+  priceCents:
+    number;
+
+  currency:
+    "EUR";
 };

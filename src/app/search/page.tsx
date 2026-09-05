@@ -1,4 +1,5 @@
-﻿import { services } from "@/server/services";
+import Link from "next/link";
+import { services } from "@/server/services";
 
 type SearchPageProps = {
   searchParams: Promise<{
@@ -20,12 +21,12 @@ export default async function SearchPage({
   return (
     <main className="min-h-screen bg-neutral-950 px-6 py-16 text-neutral-100">
       <div className="mx-auto max-w-5xl">
-        <a
+        <Link
           href="/"
           className="text-sm text-neutral-500"
         >
           ← TinyTools
-        </a>
+        </Link>
 
         <h1 className="mt-8 text-4xl font-semibold">
           Search

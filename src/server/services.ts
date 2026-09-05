@@ -1,9 +1,12 @@
-﻿import { InMemoryToolRepository } from "@/modules/tools/repositories/in-memory-tool-repository";
+﻿import { PostgresToolRepository } from "@/modules/tools/repositories/postgres-tool-repository";
 import { ToolService } from "@/modules/tools/services/tool-service";
 
 const toolRepository =
-  new InMemoryToolRepository();
+  new PostgresToolRepository();
 
 export const services = {
-  tools: new ToolService(toolRepository),
+  tools:
+    new ToolService(
+      toolRepository,
+    ),
 };

@@ -1,14 +1,33 @@
-﻿import "dotenv/config";
+import dotenv from "dotenv";
 
-import { defineConfig } from "drizzle-kit";
+dotenv.config({
+  path: ".env.local",
+  override: true,
+});
+
+import {
+  defineConfig,
+} from "drizzle-kit";
 
 export default defineConfig({
   out: "./drizzle",
-  schema: "./src/infrastructure/db/schema.ts",
-  dialect: "postgresql",
+
+  schema:
+    "./src/infrastructure/db/schema.ts",
+
+  dialect:
+    "postgresql",
+
   dbCredentials: {
     url:
       process.env.DATABASE_URL ??
-      "postgresql://placeholder:placeholder@localhost:5432/tinytools",
+      "",
   },
+
+  schemaFilter: [
+    "public",
+  ],
+
+  verbose: true,
+  strict: true,
 });
