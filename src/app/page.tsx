@@ -1,5 +1,6 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
+import { ToolCard } from "@/modules/tools/components/tool-card";
 import { services } from "@/server/services";
 
 export default async function Home() {
@@ -8,86 +9,96 @@ export default async function Home() {
 
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100">
-      <section className="mx-auto max-w-6xl px-6 py-24">
-        <div className="max-w-3xl">
-          <p className="mb-4 text-sm uppercase tracking-[0.3em] text-neutral-500">
-            TinyTools
-          </p>
+      <section className="px-6 pb-20 pt-24">
+        <div className="mx-auto max-w-5xl">
+          <nav className="flex items-center justify-between">
+            <div className="text-lg font-semibold">
+              TinyTools
+            </div>
 
-          <h1 className="text-5xl font-semibold tracking-tight sm:text-7xl">
-            Small software.
-            <br />
-            Specific problems.
-          </h1>
+            <div className="flex gap-3">
+              <Link
+                href="/request"
+                className="rounded-xl border border-neutral-800 px-4 py-2 text-sm text-neutral-300"
+              >
+                Request tool
+              </Link>
 
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-neutral-400">
-            Find focused desktop tools without installing oversized software
-            suites.
-          </p>
+              <Link
+                href="/publish"
+                className="rounded-xl bg-neutral-100 px-4 py-2 text-sm font-medium text-neutral-950"
+              >
+                Publish
+              </Link>
+            </div>
+          </nav>
 
-          <form
-            action="/search"
-            className="mt-10 flex gap-3"
-          >
-            <input
-              name="q"
-              placeholder="What do you need to do?"
-              className="min-w-0 flex-1 rounded-xl border border-neutral-800 bg-neutral-900 px-5 py-4 outline-none placeholder:text-neutral-600 focus:border-neutral-600"
-            />
+          <div className="mt-24 max-w-4xl">
+            <p className="text-sm uppercase tracking-[0.25em] text-neutral-500">
+              Small software. Specific problems.
+            </p>
 
-            <button
-              type="submit"
-              className="rounded-xl bg-neutral-100 px-6 py-4 font-medium text-neutral-950"
+            <h1 className="mt-6 text-5xl font-semibold tracking-tight md:text-7xl">
+              Find the tiny tool that solves exactly what you need.
+            </h1>
+
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-neutral-400">
+              Lightweight utilities for jobs too small for heavyweight software.
+            </p>
+
+            <form
+              action="/search"
+              className="mt-10 flex max-w-3xl gap-3"
             >
-              Search
-            </button>
-          </form>
-        </div>
+              <input
+                name="q"
+                placeholder="What do you need to do?"
+                className="min-w-0 flex-1 rounded-2xl border border-neutral-800 bg-neutral-900 px-5 py-4 outline-none focus:border-neutral-600"
+              />
 
-        <section className="mt-24">
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-xl font-medium">
-              Example tools
-            </h2>
+              <button
+                type="submit"
+                className="rounded-2xl bg-neutral-100 px-7 font-medium text-neutral-950"
+              >
+                Search
+              </button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-neutral-900 px-6 py-16">
+        <div className="mx-auto max-w-5xl">
+          <div className="flex items-end justify-between gap-6">
+            <div>
+              <h2 className="text-2xl font-semibold">
+                Available tools
+              </h2>
+
+              <p className="mt-2 text-neutral-500">
+                Initial TinyTools catalog.
+              </p>
+            </div>
 
             <Link
-              href="/api/health"
-              className="text-sm text-neutral-500 hover:text-neutral-300"
+              href="/search"
+              className="text-sm text-neutral-400"
             >
-              API health
+              Browse all →
             </Link>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            {tools.map((tool) => (
-              <article
-                key={tool.id}
-                className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6"
-              >
-                <h3 className="text-lg font-medium">
-                  {tool.name}
-                </h3>
-
-                <p className="mt-2 text-neutral-400">
-                  {tool.shortDescription}
-                </p>
-
-                <div className="mt-6 flex items-center justify-between text-sm">
-                  <span className="text-neutral-500">
-                    {tool.platforms.join(" · ")}
-                  </span>
-
-                  <span>
-                    €
-                    {(
-                      tool.priceCents / 100
-                    ).toFixed(2)}
-                  </span>
-                </div>
-              </article>
-            ))}
+          <div className="mt-8 grid gap-4">
+            {tools.map(
+              (tool) => (
+                <ToolCard
+                  key={tool.id}
+                  tool={tool}
+                />
+              ),
+            )}
           </div>
-        </section>
+        </div>
       </section>
     </main>
   );
