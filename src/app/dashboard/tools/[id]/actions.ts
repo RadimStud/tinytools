@@ -383,6 +383,65 @@ export async function getVersionDownloadUrl(
     };
   }
 }
+export async function publishTool(
+  toolId: string,
+) {
+  const appUser =
+    await requireUser();
+
+  let slug = "";
+
+  try {
+    const result =
+      await services.developerTools
+        .publishTool(
+          toolId,
+          appUser.id,
+        );
+
+    slug =
+      result.slug;
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Could not publish tool.";
+
+    redirect(
+      errorUrl(
+        toolId,
+        message,
+      ),
+    );
+  }
+
+  revalidatePath(
+    "/",
+  );
+
+  revalidatePath(
+    "/search",
+  );
+
+  revalidatePath(
+    "/dashboard",
+  );
+
+  revalidatePath(
+    `/dashboard/tools/${toolId}`,
+  );
+
+  if (slug) {
+    revalidatePath(
+      `/tools/${slug}`,
+    );
+  }
+
+  redirect(
+    `/dashboard/tools/${toolId}?published=1`,
+  );
+}
+
 export async function archiveTool(
   toolId: string,
 ) {

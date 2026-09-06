@@ -247,6 +247,124 @@ export class DeveloperToolService {
       );
     }
   }
+  async publishTool(
+    toolId: string,
+    ownerId: string,
+  ) {
+    const tool =
+      await this.repository
+        .findByIdForOwner(
+          toolId,
+          ownerId,
+        );
+
+    if (!tool) {
+      throw new Error(
+        "Tool not found.",
+      );
+    }
+
+    if (
+      tool.status ===
+      "published"
+    ) {
+      throw new Error(
+        "Tool is already published.",
+      );
+    }
+
+    if (
+      tool.status ===
+      "archived"
+    ) {
+      throw new Error(
+        "Archived tool cannot be published.",
+      );
+    }
+
+    if (
+      tool.name.trim().length <
+      2
+    ) {
+      throw new Error(
+        "Tool name is incomplete.",
+      );
+    }
+
+    if (
+      tool.shortDescription
+        .trim()
+        .length < 10
+    ) {
+      throw new Error(
+        "Short description must have at least 10 characters.",
+      );
+    }
+
+    if (
+      !tool.description ||
+      tool.description
+        .trim()
+        .length < 20
+    ) {
+      throw new Error(
+        "Add a full description with at least 20 characters before publishing.",
+      );
+    }
+
+    if (
+      tool.platforms.length ===
+      0
+    ) {
+      throw new Error(
+        "Select at least one platform before publishing.",
+      );
+    }
+
+    const releasableVersion =
+      tool.versions.find(
+        (version) =>
+          version.isActive &&
+          Boolean(
+            version.fileKey,
+          ) &&
+          Boolean(
+            version.checksum,
+          ) &&
+          /^[a-f0-9]{64}$/i.test(
+            version.checksum ??
+              "",
+          ),
+      );
+
+    if (!releasableVersion) {
+      throw new Error(
+        "Upload a binary with a valid SHA-256 checksum to at least one active version before publishing.",
+      );
+    }
+
+    const published =
+      await this.repository
+        .publishForOwner(
+          toolId,
+          ownerId,
+        );
+
+    if (!published) {
+      throw new Error(
+        "Could not publish tool.",
+      );
+    }
+
+    return {
+      slug:
+        tool.slug,
+
+      version:
+        releasableVersion.version,
+    };
+  }
+
   async archiveTool(
     toolId: string,
     ownerId: string,

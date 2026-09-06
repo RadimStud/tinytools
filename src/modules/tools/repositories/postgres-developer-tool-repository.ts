@@ -468,6 +468,46 @@ export class PostgresDeveloperToolRepository
 
     return true;
   }
+  async publishForOwner(
+    toolId: string,
+    ownerId: string,
+  ): Promise<boolean> {
+    const rows =
+      await db
+        .update(tools)
+        .set({
+          status:
+            "published",
+
+          updatedAt:
+            new Date(),
+        })
+        .where(
+          and(
+            eq(
+              tools.id,
+              toolId,
+            ),
+            eq(
+              tools.ownerId,
+              ownerId,
+            ),
+            eq(
+              tools.status,
+              "draft",
+            ),
+          ),
+        )
+        .returning({
+          id:
+            tools.id,
+        });
+
+    return Boolean(
+      rows[0],
+    );
+  }
+
   async archiveForOwner(
     toolId: string,
     ownerId: string,

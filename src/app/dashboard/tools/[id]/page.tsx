@@ -12,6 +12,7 @@ import {
 import {
   archiveTool,
   createVersion,
+  publishTool,
   updateTool,
 } from "./actions";
 
@@ -28,6 +29,7 @@ type ToolManagementPageProps = {
     saved?: string;
     versionCreated?: string;
     archived?: string;
+    published?: string;
     error?: string;
   }>;
 };
@@ -62,6 +64,7 @@ export default async function ToolManagementPage({
     saved,
     versionCreated,
     archived,
+    published,
     error,
   } = await searchParams;
 
@@ -88,6 +91,12 @@ export default async function ToolManagementPage({
       tool.id,
     );
 
+  const publishAction =
+    publishTool.bind(
+      null,
+      tool.id,
+    );
+
   const archiveAction =
     archiveTool.bind(
       null,
@@ -101,7 +110,7 @@ export default async function ToolManagementPage({
           href="/dashboard"
           className="text-sm text-neutral-500 hover:text-neutral-300"
         >
-          ← Dashboard
+          â† Dashboard
         </Link>
 
         <div className="mt-10 flex flex-col justify-between gap-6 md:flex-row md:items-start">
@@ -131,6 +140,12 @@ export default async function ToolManagementPage({
         {versionCreated ? (
           <div className="mt-8 rounded-xl border border-emerald-900 bg-emerald-950/20 p-4 text-sm text-emerald-300">
             Version created successfully.
+          </div>
+        ) : null}
+
+        {published ? (
+          <div className="mt-8 rounded-xl border border-emerald-900 bg-emerald-950/20 p-4 text-sm text-emerald-300">
+            Tool published successfully.
           </div>
         ) : null}
 
@@ -405,6 +420,54 @@ export default async function ToolManagementPage({
             )}
           </section>
         </div>
+
+        <section className="mt-6 rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+          <h2 className="text-xl font-medium">
+            Release
+          </h2>
+
+          {tool.status ===
+          "published" ? (
+            <div className="mt-4">
+              <p className="text-sm text-emerald-300">
+                This tool is published.
+              </p>
+
+              <Link
+                href={`/tools/${tool.slug}`}
+                className="mt-4 inline-block rounded-xl border border-neutral-700 px-5 py-3 text-sm hover:border-neutral-500"
+              >
+                View public page →
+              </Link>
+            </div>
+          ) : tool.status ===
+            "archived" ? (
+            <p className="mt-4 text-sm text-neutral-500">
+              Archived tools cannot be published.
+            </p>
+          ) : (
+            <div className="mt-4">
+              <p className="max-w-2xl text-sm leading-6 text-neutral-500">
+                Publishing makes this tool visible in the marketplace.
+                At least one active version must have a binary and SHA-256 checksum.
+              </p>
+
+              <form
+                action={
+                  publishAction
+                }
+                className="mt-5"
+              >
+                <button
+                  type="submit"
+                  className="rounded-xl bg-emerald-500 px-5 py-3 font-medium text-neutral-950 hover:bg-emerald-400"
+                >
+                  Publish tool
+                </button>
+              </form>
+            </div>
+          )}
+        </section>
 
         <section className="mt-6 rounded-2xl border border-red-950 bg-neutral-900 p-6">
           <h2 className="text-xl font-medium text-red-300">

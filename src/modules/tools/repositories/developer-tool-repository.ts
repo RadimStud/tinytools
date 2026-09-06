@@ -34,6 +34,11 @@ export interface DeveloperToolRepository {
     input: AttachDeveloperToolVersionFileInput,
   ): Promise<boolean>;
 
+  publishForOwner(
+    toolId: string,
+    ownerId: string,
+  ): Promise<boolean>;
+
   archiveForOwner(
     toolId: string,
     ownerId: string,

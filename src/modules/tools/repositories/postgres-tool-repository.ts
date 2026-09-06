@@ -1,10 +1,14 @@
-﻿import {
+import {
+  and,
   eq,
   ilike,
   or,
 } from "drizzle-orm";
 
-import { db } from "@/infrastructure/db/db";
+import {
+  db,
+} from "@/infrastructure/db/db";
+
 import {
   toolPlatforms,
   tools,
@@ -23,18 +27,10 @@ type ToolRow = {
   id: string;
   slug: string;
   name: string;
-
-  shortDescription:
-    string;
-
-  priceCents:
-    number;
-
-  currency:
-    string;
-
-  platform:
-    ToolPlatform | null;
+  shortDescription: string;
+  priceCents: number;
+  currency: string;
+  platform: ToolPlatform | null;
 };
 
 function mapRows(
@@ -44,47 +40,59 @@ function mapRows(
     new Map<string, Tool>();
 
   for (const row of rows) {
-    let tool =
+    const existingTool =
       map.get(row.id);
 
-    if (!tool) {
-      tool = {
-        id: row.id,
-        slug: row.slug,
-        name: row.name,
+    if (existingTool) {
+      if (
+        row.platform &&
+        !existingTool.platforms.includes(
+          row.platform,
+        )
+      ) {
+        existingTool.platforms.push(
+          row.platform,
+        );
+      }
 
-        shortDescription:
-          row.shortDescription,
+      continue;
+    }
 
-        priceCents:
-          row.priceCents,
-
-        currency: "EUR",
-
-        platforms: [],
-      };
-
-      map.set(
+    const tool: Tool = {
+      id:
         row.id,
-        tool,
-      );
-    }
 
-    if (
-      row.platform &&
-      !tool.platforms.includes(
-        row.platform,
-      )
-    ) {
-      tool.platforms.push(
-        row.platform,
-      );
-    }
+      slug:
+        row.slug,
+
+      name:
+        row.name,
+
+      shortDescription:
+        row.shortDescription,
+
+      priceCents:
+        row.priceCents,
+
+      currency:
+        "EUR",
+
+      platforms:
+        row.platform
+          ? [row.platform]
+          : [],
+    };
+
+    map.set(
+      row.id,
+      tool,
+    );
   }
 
-  return [...map.values()];
+  return [
+    ...map.values(),
+  ];
 }
-
 export class PostgresToolRepository
   implements ToolRepository
 {
@@ -93,9 +101,14 @@ export class PostgresToolRepository
     const rows =
       await db
         .select({
-          id: tools.id,
-          slug: tools.slug,
-          name: tools.name,
+          id:
+            tools.id,
+
+          slug:
+            tools.slug,
+
+          name:
+            tools.name,
 
           shortDescription:
             tools.shortDescription,
@@ -124,7 +137,9 @@ export class PostgresToolRepository
           ),
         );
 
-    return mapRows(rows);
+    return mapRows(
+      rows,
+    );
   }
 
   async findBySlug(
@@ -133,9 +148,14 @@ export class PostgresToolRepository
     const rows =
       await db
         .select({
-          id: tools.id,
-          slug: tools.slug,
-          name: tools.name,
+          id:
+            tools.id,
+
+          slug:
+            tools.slug,
+
+          name:
+            tools.name,
 
           shortDescription:
             tools.shortDescription,
@@ -158,14 +178,22 @@ export class PostgresToolRepository
           ),
         )
         .where(
-          eq(
-            tools.slug,
-            slug,
+          and(
+            eq(
+              tools.slug,
+              slug,
+            ),
+            eq(
+              tools.status,
+              "published",
+            ),
           ),
         );
 
     return (
-      mapRows(rows)[0] ??
+      mapRows(
+        rows,
+      )[0] ??
       null
     );
   }
@@ -186,9 +214,14 @@ export class PostgresToolRepository
     const rows =
       await db
         .select({
-          id: tools.id,
-          slug: tools.slug,
-          name: tools.name,
+          id:
+            tools.id,
+
+          slug:
+            tools.slug,
+
+          name:
+            tools.name,
 
           shortDescription:
             tools.shortDescription,
@@ -211,19 +244,27 @@ export class PostgresToolRepository
           ),
         )
         .where(
-          or(
-            ilike(
-              tools.name,
-              pattern,
+          and(
+            eq(
+              tools.status,
+              "published",
             ),
+            or(
+              ilike(
+                tools.name,
+                pattern,
+              ),
 
-            ilike(
-              tools.shortDescription,
-              pattern,
+              ilike(
+                tools.shortDescription,
+                pattern,
+              ),
             ),
           ),
         );
 
-    return mapRows(rows);
+    return mapRows(
+      rows,
+    );
   }
 }
