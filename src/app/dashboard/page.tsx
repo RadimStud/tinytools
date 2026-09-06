@@ -156,10 +156,19 @@ export default async function DashboardPage({
                       </p>
                     </div>
 
-                    <div className="shrink-0 text-neutral-300">
-                      {formatPrice(
-                        tool.priceCents,
-                      )}
+                    <div className="shrink-0 text-right">
+                      <div className="text-neutral-300">
+                        {formatPrice(
+                          tool.priceCents,
+                        )}
+                      </div>
+
+                      <Link
+                        href={`/dashboard/tools/${tool.id}`}
+                        className="mt-4 inline-block text-sm text-neutral-400 hover:text-neutral-100"
+                      >
+                        Manage →
+                      </Link>
                     </div>
                   </div>
                 </article>
