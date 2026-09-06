@@ -1,7 +1,11 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import {
+  notFound,
+} from "next/navigation";
 
-import { services } from "@/server/services";
+import {
+  services,
+} from "@/server/services";
 
 type ToolPageProps = {
   params: Promise<{
@@ -22,7 +26,9 @@ function formatPrice(
       style: "currency",
       currency: "EUR",
     },
-  ).format(priceCents / 100);
+  ).format(
+    priceCents / 100,
+  );
 }
 
 export default async function ToolPage({
@@ -40,6 +46,9 @@ export default async function ToolPage({
   if (!tool) {
     notFound();
   }
+
+  const isFree =
+    tool.priceCents === 0;
 
   return (
     <main className="min-h-screen bg-neutral-950 px-6 py-16 text-neutral-100">
@@ -83,14 +92,23 @@ export default async function ToolPage({
                 )}
               </div>
 
-              <button
-                type="button"
-                disabled
-                title="Downloads will be enabled in the next phase."
-                className="mt-5 w-full cursor-not-allowed rounded-xl bg-neutral-100 px-6 py-3 font-medium text-neutral-950 opacity-60"
-              >
-                Download soon
-              </button>
+              {isFree ? (
+                <Link
+                  href={`/tools/${tool.slug}/download`}
+                  className="mt-5 block w-full rounded-xl bg-neutral-100 px-6 py-3 text-center font-medium text-neutral-950 hover:bg-white"
+                >
+                  Download
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  title="Payments will be enabled in a later phase."
+                  className="mt-5 w-full cursor-not-allowed rounded-xl bg-neutral-100 px-6 py-3 font-medium text-neutral-950 opacity-60"
+                >
+                  Purchase soon
+                </button>
+              )}
             </div>
           </div>
         </section>
