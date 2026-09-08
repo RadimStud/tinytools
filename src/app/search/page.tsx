@@ -3,6 +3,9 @@ import Link from "next/link";
 import { ToolCard } from "@/modules/tools/components/tool-card";
 import { services } from "@/server/services";
 
+export const dynamic =
+  "force-dynamic";
+
 type SearchPageProps = {
   searchParams: Promise<{
     q?: string;

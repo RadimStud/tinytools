@@ -1,26 +1,22 @@
 import {
-  and,
-  desc,
-  eq,
-  isNotNull,
-} from "drizzle-orm";
-
-import {
   NextResponse,
 } from "next/server";
 
 import {
-  db,
-} from "@/infrastructure/db/db";
-
-import {
-  tools,
-  toolVersions,
-} from "@/infrastructure/db/schema";
-
-import {
   createDownloadUrl,
 } from "@/infrastructure/storage/r2-storage";
+
+import {
+  ToolError,
+} from "@/modules/tools/domain/tool-error";
+
+import {
+  fallbackFileNameFromKey,
+} from "@/modules/tools/domain/version-rules";
+
+import {
+  services,
+} from "@/server/services";
 
 type DownloadRouteProps = {
   params: Promise<{
@@ -40,69 +36,54 @@ export async function GET(
     slug,
   } = await params;
 
-  const rows =
-    await db
-      .select({
-        fileKey:
-          toolVersions.fileKey,
-      })
-      .from(tools)
-      .innerJoin(
-        toolVersions,
-        eq(
-          toolVersions.toolId,
-          tools.id,
-        ),
-      )
-      .where(
-        and(
-          eq(
-            tools.slug,
-            slug,
-          ),
-          eq(
-            tools.status,
-            "published",
-          ),
-          eq(
-            tools.priceCents,
-            0,
-          ),
-          eq(
-            toolVersions.isActive,
-            true,
-          ),
-          isNotNull(
-            toolVersions.fileKey,
-          ),
-        ),
-      )
-      .orderBy(
-        desc(
-          toolVersions.createdAt,
-        ),
-      )
-      .limit(1);
+  try {
+    const download =
+      await services.tools
+        .getPublicDownload(
+          slug,
+        );
 
-  const fileKey =
-    rows[0]?.fileKey;
+    const downloadUrl =
+      await createDownloadUrl(
+        download.fileKey,
+        {
+          fileName:
+            download.originalFileName ??
+            fallbackFileNameFromKey(
+              download.fileKey,
+            ),
 
-  if (!fileKey) {
+          contentType:
+            download.contentType,
+        },
+      );
+
+    return NextResponse.redirect(
+      downloadUrl,
+      307,
+    );
+  } catch (error) {
+    if (
+      error instanceof
+        ToolError &&
+      error.message ===
+        "Paid downloads are not available yet."
+    ) {
+      return new NextResponse(
+        error.message,
+        {
+          status: 403,
+        },
+      );
+    }
+
     return new NextResponse(
-      "Download is not available.",
+      error instanceof ToolError
+        ? error.message
+        : "Download is not available.",
       {
         status: 404,
       },
     );
   }
-
-  const downloadUrl =
-    await createDownloadUrl(
-      fileKey,
-    );
-
-  return NextResponse.redirect(
-    downloadUrl,
-    307,
-  );
 }

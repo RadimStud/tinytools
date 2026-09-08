@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TinyTools
 
-## Getting Started
+Marketplace MVP for small, single-purpose desktop utilities.
 
-First, run the development server:
+## Stack
+
+- Next.js 16 and TypeScript
+- Tailwind CSS
+- PostgreSQL, Drizzle ORM
+- Supabase Auth
+- Cloudflare R2 (private bucket, server-side presigned URLs)
+
+## Commands
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run lint
+npm test
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Database
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Schema source of truth: `src/infrastructure/db/schema.ts`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run db:generate
+npm run db:push
+```
 
-## Learn More
+Apply the explicit current-release SQL as well (unique version constraint, file metadata columns, same-tool current release FK, backfill):
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+psql "$DATABASE_URL" -f drizzle/0001_explicit_current_release.sql
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+If you already use `db:push` after pulling this schema, still run that SQL file so the composite `tools_current_version_same_tool_fk` constraint exists. It is idempotent.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run db:seed
+```
 
-## Deploy on Vercel
+## Architecture
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+UI and routes call services. Services use repository interfaces. PostgreSQL and R2 stay in `src/infrastructure`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See `docs/architecture/releases.md` and `docs/architecture/storage.md`.
+
+For a full handoff of the current-release work, read `CURSOR_IMPLEMENTATION_REPORT.md`.

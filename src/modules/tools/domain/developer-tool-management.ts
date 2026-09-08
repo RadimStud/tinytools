@@ -24,4 +24,19 @@ export type AttachDeveloperToolVersionFileInput = {
   versionId: string;
   fileKey: string;
   checksum: string;
+  originalFileName: string | null;
+  contentType: string | null;
+  fileSizeBytes: number | null;
+};
+
+export type PublishDeveloperToolInput = {
+  toolId: string;
+  ownerId: string;
+  currentVersionId: string;
+};
+
+export type SetCurrentReleaseInput = {
+  toolId: string;
+  ownerId: string;
+  versionId: string;
 };

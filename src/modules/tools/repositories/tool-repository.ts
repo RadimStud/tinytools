@@ -1,4 +1,7 @@
-﻿import type { Tool } from "../domain/tool";
+﻿import type {
+  PublicToolDownload,
+  Tool,
+} from "../domain/tool";
 
 export interface ToolRepository {
   findAll(): Promise<Tool[]>;
@@ -10,4 +13,8 @@ export interface ToolRepository {
   search(
     query: string,
   ): Promise<Tool[]>;
+
+  findPublicDownloadBySlug(
+    slug: string,
+  ): Promise<PublicToolDownload | null>;
 }

@@ -10,6 +10,10 @@ import {
 } from "@/infrastructure/db/db";
 
 import {
+  isUniqueViolation,
+} from "@/infrastructure/db/postgres-errors";
+
+import {
   toolPlatforms,
   tools,
   toolVersions,
@@ -19,9 +23,15 @@ import type {
   DeveloperToolDetail,
 } from "../domain/developer-tool-detail";
 
+import {
+  ToolError,
+} from "../domain/tool-error";
+
 import type {
   AttachDeveloperToolVersionFileInput,
   CreateDeveloperToolVersionInput,
+  PublishDeveloperToolInput,
+  SetCurrentReleaseInput,
   UpdateDeveloperToolInput,
 } from "../domain/developer-tool-management";
 
@@ -101,6 +111,9 @@ export class PostgresDeveloperToolRepository
           status:
             tools.status,
 
+          currentVersionId:
+            tools.currentVersionId,
+
           createdAt:
             tools.createdAt,
 
@@ -159,6 +172,15 @@ export class PostgresDeveloperToolRepository
 
           checksum:
             toolVersions.checksum,
+
+          originalFileName:
+            toolVersions.originalFileName,
+
+          contentType:
+            toolVersions.contentType,
+
+          fileSizeBytes:
+            toolVersions.fileSizeBytes,
 
           isActive:
             toolVersions.isActive,
@@ -344,31 +366,54 @@ export class PostgresDeveloperToolRepository
         .limit(1);
 
     if (existingVersions[0]) {
-      throw new Error(
-        `Version ${input.version} already exists.`,
+      throw new ToolError(
+        "Version already exists.",
       );
     }
 
-    await db
-      .insert(
-        toolVersions,
-      )
-      .values({
-        toolId:
-          input.toolId,
+    try {
+      await db
+        .insert(
+          toolVersions,
+        )
+        .values({
+          toolId:
+            input.toolId,
 
-        version:
-          input.version,
+          version:
+            input.version,
 
-        fileKey:
-          null,
+          fileKey:
+            null,
 
-        checksum:
-          null,
+          checksum:
+            null,
 
-        isActive:
-          true,
-      });
+          originalFileName:
+            null,
+
+          contentType:
+            null,
+
+          fileSizeBytes:
+            null,
+
+          isActive:
+            true,
+        });
+    } catch (error) {
+      if (
+        isUniqueViolation(
+          error,
+        )
+      ) {
+        throw new ToolError(
+          "Version already exists.",
+        );
+      }
+
+      throw error;
+    }
 
     await db
       .update(tools)
@@ -425,6 +470,15 @@ export class PostgresDeveloperToolRepository
 
           checksum:
             input.checksum,
+
+          originalFileName:
+            input.originalFileName,
+
+          contentType:
+            input.contentType,
+
+          fileSizeBytes:
+            input.fileSizeBytes,
         })
         .where(
           and(
@@ -469,8 +523,7 @@ export class PostgresDeveloperToolRepository
     return true;
   }
   async publishForOwner(
-    toolId: string,
-    ownerId: string,
+    input: PublishDeveloperToolInput,
   ): Promise<boolean> {
     const rows =
       await db
@@ -479,6 +532,9 @@ export class PostgresDeveloperToolRepository
           status:
             "published",
 
+          currentVersionId:
+            input.currentVersionId,
+
           updatedAt:
             new Date(),
         })
@@ -486,15 +542,50 @@ export class PostgresDeveloperToolRepository
           and(
             eq(
               tools.id,
-              toolId,
+              input.toolId,
             ),
             eq(
               tools.ownerId,
-              ownerId,
+              input.ownerId,
             ),
             eq(
               tools.status,
               "draft",
+            ),
+          ),
+        )
+        .returning({
+          id:
+            tools.id,
+        });
+
+    return Boolean(
+      rows[0],
+    );
+  }
+
+  async setCurrentReleaseForOwner(
+    input: SetCurrentReleaseInput,
+  ): Promise<boolean> {
+    const rows =
+      await db
+        .update(tools)
+        .set({
+          currentVersionId:
+            input.versionId,
+
+          updatedAt:
+            new Date(),
+        })
+        .where(
+          and(
+            eq(
+              tools.id,
+              input.toolId,
+            ),
+            eq(
+              tools.ownerId,
+              input.ownerId,
             ),
           ),
         )

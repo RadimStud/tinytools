@@ -1,8 +1,10 @@
 "use server";
+
 import {
   createDownloadUrl,
   createToolFileKey,
   createUploadUrl,
+  headFile,
 } from "@/infrastructure/storage/r2-storage";
 
 import {
@@ -16,6 +18,14 @@ import {
 import type {
   ToolPlatform,
 } from "@/modules/tools/domain/tool";
+
+import {
+  getToolErrorMessage,
+} from "@/modules/tools/domain/tool-error";
+
+import {
+  fallbackFileNameFromKey,
+} from "@/modules/tools/domain/version-rules";
 
 import {
   services,
@@ -82,16 +92,28 @@ async function requireOwnedVersion(
     );
   }
 
-  return version;
+  return {
+    tool,
+    version,
+  };
 }
 
-function getErrorMessage(
-  error: unknown,
+function revalidateMarketplace(
+  slug?: string,
 ) {
-  return error instanceof Error
-    ? error.message
-    : "Unexpected error.";
+  revalidatePath("/");
+  revalidatePath("/search");
+
+  if (slug) {
+    revalidatePath(
+      `/tools/${slug}`,
+    );
+    revalidatePath(
+      `/tools/${slug}/download`,
+    );
+  }
 }
+
 export async function updateTool(
   toolId: string,
   formData: FormData,
@@ -146,15 +168,13 @@ export async function updateTool(
         platforms,
       });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Could not update tool.";
-
     redirect(
       errorUrl(
         toolId,
-        message,
+        getToolErrorMessage(
+          error,
+          "Could not update tool.",
+        ),
       ),
     );
   }
@@ -195,15 +215,13 @@ export async function createVersion(
           ),
       });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Could not create version.";
-
     redirect(
       errorUrl(
         toolId,
-        message,
+        getToolErrorMessage(
+          error,
+          "Could not create version.",
+        ),
       ),
     );
   }
@@ -227,7 +245,9 @@ export async function prepareVersionUpload(
     await requireUser();
 
   try {
-    const version =
+    const {
+      version,
+    } =
       await requireOwnedVersion(
         toolId,
         versionId,
@@ -279,12 +299,14 @@ export async function prepareVersionUpload(
       ok: true as const,
       uploadUrl,
     };
-  }
-  catch (error) {
+  } catch (error) {
     return {
       ok: false as const,
       error:
-        getErrorMessage(error),
+        getToolErrorMessage(
+          error,
+          "Could not prepare upload.",
+        ),
     };
   }
 }
@@ -294,12 +316,16 @@ export async function finalizeVersionUpload(
   versionId: string,
   fileName: string,
   checksum: string,
+  contentType: string,
+  fileSizeBytes: number,
 ) {
   const appUser =
     await requireUser();
 
   try {
-    const version =
+    const {
+      version,
+    } =
       await requireOwnedVersion(
         toolId,
         versionId,
@@ -313,6 +339,42 @@ export async function finalizeVersionUpload(
         fileName,
       );
 
+    let storedContentType =
+      contentType.trim() ||
+      "application/octet-stream";
+
+    let storedFileSize =
+      Number.isFinite(
+        fileSizeBytes,
+      ) &&
+      fileSizeBytes >= 0
+        ? Math.round(
+            fileSizeBytes,
+          )
+        : null;
+
+    try {
+      const head =
+        await headFile(
+          fileKey,
+        );
+
+      if (head.contentType) {
+        storedContentType =
+          head.contentType;
+      }
+
+      if (
+        typeof head.fileSizeBytes ===
+        "number"
+      ) {
+        storedFileSize =
+          head.fileSizeBytes;
+      }
+    } catch {
+      // Keep client-provided metadata when HeadObject is unavailable.
+    }
+
     await services.developerTools
       .attachVersionFile({
         toolId,
@@ -325,6 +387,15 @@ export async function finalizeVersionUpload(
         fileKey,
 
         checksum,
+
+        originalFileName:
+          fileName.trim(),
+
+        contentType:
+          storedContentType,
+
+        fileSizeBytes:
+          storedFileSize,
       });
 
     revalidatePath(
@@ -334,12 +405,14 @@ export async function finalizeVersionUpload(
     return {
       ok: true as const,
     };
-  }
-  catch (error) {
+  } catch (error) {
     return {
       ok: false as const,
       error:
-        getErrorMessage(error),
+        getToolErrorMessage(
+          error,
+          "Could not attach binary.",
+        ),
     };
   }
 }
@@ -352,7 +425,9 @@ export async function getVersionDownloadUrl(
     await requireUser();
 
   try {
-    const version =
+    const {
+      version,
+    } =
       await requireOwnedVersion(
         toolId,
         versionId,
@@ -368,22 +443,148 @@ export async function getVersionDownloadUrl(
     const url =
       await createDownloadUrl(
         version.fileKey,
+        {
+          fileName:
+            version.originalFileName ??
+            fallbackFileNameFromKey(
+              version.fileKey,
+            ),
+
+          contentType:
+            version.contentType,
+        },
       );
 
     return {
       ok: true as const,
       url,
     };
-  }
-  catch (error) {
+  } catch (error) {
     return {
       ok: false as const,
       error:
-        getErrorMessage(error),
+        getToolErrorMessage(
+          error,
+          "Download failed.",
+        ),
     };
   }
 }
+
 export async function publishTool(
+  toolId: string,
+  formData: FormData,
+) {
+  const appUser =
+    await requireUser();
+
+  const versionId =
+    String(
+      formData.get(
+        "versionId",
+      ) ?? "",
+    ).trim();
+
+  let slug = "";
+
+  try {
+    const result =
+      await services.developerTools
+        .publishTool(
+          toolId,
+          appUser.id,
+          versionId ||
+            undefined,
+        );
+
+    slug =
+      result.slug;
+  } catch (error) {
+    redirect(
+      errorUrl(
+        toolId,
+        getToolErrorMessage(
+          error,
+          "Could not publish tool.",
+        ),
+      ),
+    );
+  }
+
+  revalidatePath(
+    "/dashboard",
+  );
+
+  revalidatePath(
+    `/dashboard/tools/${toolId}`,
+  );
+
+  revalidateMarketplace(
+    slug,
+  );
+
+  redirect(
+    `/dashboard/tools/${toolId}?published=1`,
+  );
+}
+
+export async function setCurrentRelease(
+  toolId: string,
+  formData: FormData,
+) {
+  const appUser =
+    await requireUser();
+
+  const versionId =
+    String(
+      formData.get(
+        "versionId",
+      ) ?? "",
+    ).trim();
+
+  let slug = "";
+
+  try {
+    const result =
+      await services.developerTools
+        .setCurrentRelease(
+          toolId,
+          appUser.id,
+          versionId,
+        );
+
+    slug =
+      result.slug;
+  } catch (error) {
+    redirect(
+      errorUrl(
+        toolId,
+        getToolErrorMessage(
+          error,
+          "Could not set current release.",
+        ),
+      ),
+    );
+  }
+
+  revalidatePath(
+    "/dashboard",
+  );
+
+  revalidatePath(
+    `/dashboard/tools/${toolId}`,
+  );
+
+  revalidateMarketplace(
+    slug,
+  );
+
+  redirect(
+    `/dashboard/tools/${toolId}?releaseUpdated=1`,
+  );
+}
+
+export async function archiveTool(
   toolId: string,
 ) {
   const appUser =
@@ -394,7 +595,7 @@ export async function publishTool(
   try {
     const result =
       await services.developerTools
-        .publishTool(
+        .archiveTool(
           toolId,
           appUser.id,
         );
@@ -402,68 +603,13 @@ export async function publishTool(
     slug =
       result.slug;
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Could not publish tool.";
-
     redirect(
       errorUrl(
         toolId,
-        message,
-      ),
-    );
-  }
-
-  revalidatePath(
-    "/",
-  );
-
-  revalidatePath(
-    "/search",
-  );
-
-  revalidatePath(
-    "/dashboard",
-  );
-
-  revalidatePath(
-    `/dashboard/tools/${toolId}`,
-  );
-
-  if (slug) {
-    revalidatePath(
-      `/tools/${slug}`,
-    );
-  }
-
-  redirect(
-    `/dashboard/tools/${toolId}?published=1`,
-  );
-}
-
-export async function archiveTool(
-  toolId: string,
-) {
-  const appUser =
-    await requireUser();
-
-  try {
-    await services.developerTools
-      .archiveTool(
-        toolId,
-        appUser.id,
-      );
-  } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Could not archive tool.";
-
-    redirect(
-      errorUrl(
-        toolId,
-        message,
+        getToolErrorMessage(
+          error,
+          "Could not archive tool.",
+        ),
       ),
     );
   }
@@ -474,6 +620,10 @@ export async function archiveTool(
 
   revalidatePath(
     `/dashboard/tools/${toolId}`,
+  );
+
+  revalidateMarketplace(
+    slug,
   );
 
   redirect(

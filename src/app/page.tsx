@@ -6,6 +6,9 @@ import {
   services,
 } from "@/server/services";
 
+export const dynamic =
+  "force-dynamic";
+
 export default async function Home() {
   const [
     tools,

@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/tinytools
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-publishable-key
+      R2_ENDPOINT: https://example.r2.cloudflarestorage.com
+      R2_ACCESS_KEY_ID: test-access-key-id
+      R2_SECRET_ACCESS_KEY: test-secret-access-key
+      R2_BUCKET_NAME: tinytools-ci
+      R2_REGION: auto
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build

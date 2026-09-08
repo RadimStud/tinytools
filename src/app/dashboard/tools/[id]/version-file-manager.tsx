@@ -15,6 +15,8 @@ type VersionFileManagerProps = {
   versionId: string;
   fileKey: string | null;
   checksum: string | null;
+  originalFileName: string | null;
+  disabled?: boolean;
 };
 
 async function calculateSha256(
@@ -46,6 +48,8 @@ export function VersionFileManager({
   versionId,
   fileKey,
   checksum,
+  originalFileName,
+  disabled = false,
 }: VersionFileManagerProps) {
   const [
     file,
@@ -86,7 +90,7 @@ export function VersionFileManager({
         file.type ||
         "application/octet-stream";
 
-      const checksum =
+      const checksumValue =
         await calculateSha256(
           file,
         );
@@ -133,7 +137,9 @@ export function VersionFileManager({
           toolId,
           versionId,
           file.name,
-          checksum,
+          checksumValue,
+          contentType,
+          file.size,
         );
 
       if (!finalized.ok) {
@@ -143,15 +149,13 @@ export function VersionFileManager({
       }
 
       window.location.reload();
-    }
-    catch (error) {
+    } catch (error) {
       setMessage(
         error instanceof Error
           ? error.message
           : "Upload failed.",
       );
-    }
-    finally {
+    } finally {
       setBusy(false);
     }
   }
@@ -176,8 +180,7 @@ export function VersionFileManager({
       window.location.assign(
         result.url,
       );
-    }
-    catch (error) {
+    } catch (error) {
       setMessage(
         error instanceof Error
           ? error.message
@@ -202,6 +205,12 @@ export function VersionFileManager({
             : "Download binary"}
         </button>
 
+        {originalFileName ? (
+          <p className="mt-2 truncate text-[11px] text-neutral-600">
+            {originalFileName}
+          </p>
+        ) : null}
+
         {checksum ? (
           <p className="mt-2 break-all text-[11px] text-neutral-600">
             SHA-256: {checksum}
@@ -214,6 +223,14 @@ export function VersionFileManager({
           </p>
         ) : null}
       </div>
+    );
+  }
+
+  if (disabled) {
+    return (
+      <p className="mt-3 text-xs text-neutral-600">
+        Binary upload is not available for this tool.
+      </p>
     );
   }
 

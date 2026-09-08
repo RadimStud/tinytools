@@ -1,4 +1,14 @@
-﻿import type { ToolRepository } from "../repositories/tool-repository";
+﻿import {
+  ToolError,
+} from "../domain/tool-error";
+
+import {
+  isValidSha256,
+} from "../domain/version-rules";
+
+import type {
+  ToolRepository,
+} from "../repositories/tool-repository";
 
 export class ToolService {
   constructor(
@@ -15,5 +25,39 @@ export class ToolService {
 
   async getTool(slug: string) {
     return this.repository.findBySlug(slug);
+  }
+
+  async getPublicDownload(slug: string) {
+    const download =
+      await this.repository
+        .findPublicDownloadBySlug(
+          slug,
+        );
+
+    if (!download) {
+      throw new ToolError(
+        "Download is not available.",
+      );
+    }
+
+    if (
+      download.priceCents > 0
+    ) {
+      throw new ToolError(
+        "Paid downloads are not available yet.",
+      );
+    }
+
+    if (
+      !isValidSha256(
+        download.checksum,
+      )
+    ) {
+      throw new ToolError(
+        "Download is not available.",
+      );
+    }
+
+    return download;
   }
 }

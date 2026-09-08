@@ -12,11 +12,14 @@ import {
 import {
   toolPlatforms,
   tools,
+  toolVersions,
 } from "@/infrastructure/db/schema";
 
 import type {
+  PublicToolDownload,
   Tool,
   ToolPlatform,
+  ToolRelease,
 } from "../domain/tool";
 
 import type {
@@ -28,10 +31,45 @@ type ToolRow = {
   slug: string;
   name: string;
   shortDescription: string;
+  description: string | null;
   priceCents: number;
   currency: string;
   platform: ToolPlatform | null;
+  releaseVersion: string | null;
+  releaseChecksum: string | null;
+  releaseCreatedAt: Date | null;
+  releaseOriginalFileName: string | null;
+  releaseFileSizeBytes: number | null;
 };
+
+function toRelease(
+  row: ToolRow,
+): ToolRelease | null {
+  if (
+    !row.releaseVersion ||
+    !row.releaseChecksum
+  ) {
+    return null;
+  }
+
+  return {
+    version:
+      row.releaseVersion,
+
+    checksum:
+      row.releaseChecksum,
+
+    createdAt:
+      row.releaseCreatedAt ??
+      new Date(0),
+
+    originalFileName:
+      row.releaseOriginalFileName,
+
+    fileSizeBytes:
+      row.releaseFileSizeBytes,
+  };
+}
 
 function mapRows(
   rows: ToolRow[],
@@ -71,6 +109,9 @@ function mapRows(
       shortDescription:
         row.shortDescription,
 
+      description:
+        row.description,
+
       priceCents:
         row.priceCents,
 
@@ -81,6 +122,9 @@ function mapRows(
         row.platform
           ? [row.platform]
           : [],
+
+      release:
+        toRelease(row),
     };
 
     map.set(
@@ -93,6 +137,48 @@ function mapRows(
     ...map.values(),
   ];
 }
+
+const publishedCatalogSelect = {
+  id:
+    tools.id,
+
+  slug:
+    tools.slug,
+
+  name:
+    tools.name,
+
+  shortDescription:
+    tools.shortDescription,
+
+  description:
+    tools.description,
+
+  priceCents:
+    tools.priceCents,
+
+  currency:
+    tools.currency,
+
+  platform:
+    toolPlatforms.platform,
+
+  releaseVersion:
+    toolVersions.version,
+
+  releaseChecksum:
+    toolVersions.checksum,
+
+  releaseCreatedAt:
+    toolVersions.createdAt,
+
+  releaseOriginalFileName:
+    toolVersions.originalFileName,
+
+  releaseFileSizeBytes:
+    toolVersions.fileSizeBytes,
+} as const;
+
 export class PostgresToolRepository
   implements ToolRepository
 {
@@ -100,34 +186,22 @@ export class PostgresToolRepository
     Promise<Tool[]> {
     const rows =
       await db
-        .select({
-          id:
-            tools.id,
-
-          slug:
-            tools.slug,
-
-          name:
-            tools.name,
-
-          shortDescription:
-            tools.shortDescription,
-
-          priceCents:
-            tools.priceCents,
-
-          currency:
-            tools.currency,
-
-          platform:
-            toolPlatforms.platform,
-        })
+        .select(
+          publishedCatalogSelect,
+        )
         .from(tools)
         .leftJoin(
           toolPlatforms,
           eq(
             toolPlatforms.toolId,
             tools.id,
+          ),
+        )
+        .leftJoin(
+          toolVersions,
+          eq(
+            toolVersions.id,
+            tools.currentVersionId,
           ),
         )
         .where(
@@ -147,34 +221,22 @@ export class PostgresToolRepository
   ): Promise<Tool | null> {
     const rows =
       await db
-        .select({
-          id:
-            tools.id,
-
-          slug:
-            tools.slug,
-
-          name:
-            tools.name,
-
-          shortDescription:
-            tools.shortDescription,
-
-          priceCents:
-            tools.priceCents,
-
-          currency:
-            tools.currency,
-
-          platform:
-            toolPlatforms.platform,
-        })
+        .select(
+          publishedCatalogSelect,
+        )
         .from(tools)
         .leftJoin(
           toolPlatforms,
           eq(
             toolPlatforms.toolId,
             tools.id,
+          ),
+        )
+        .leftJoin(
+          toolVersions,
+          eq(
+            toolVersions.id,
+            tools.currentVersionId,
           ),
         )
         .where(
@@ -190,12 +252,9 @@ export class PostgresToolRepository
           ),
         );
 
-    return (
-      mapRows(
-        rows,
-      )[0] ??
-      null
-    );
+    return mapRows(
+      rows,
+    )[0] ?? null;
   }
 
   async search(
@@ -213,28 +272,9 @@ export class PostgresToolRepository
 
     const rows =
       await db
-        .select({
-          id:
-            tools.id,
-
-          slug:
-            tools.slug,
-
-          name:
-            tools.name,
-
-          shortDescription:
-            tools.shortDescription,
-
-          priceCents:
-            tools.priceCents,
-
-          currency:
-            tools.currency,
-
-          platform:
-            toolPlatforms.platform,
-        })
+        .select(
+          publishedCatalogSelect,
+        )
         .from(tools)
         .leftJoin(
           toolPlatforms,
@@ -243,12 +283,20 @@ export class PostgresToolRepository
             tools.id,
           ),
         )
+        .leftJoin(
+          toolVersions,
+          eq(
+            toolVersions.id,
+            tools.currentVersionId,
+          ),
+        )
         .where(
           and(
             eq(
               tools.status,
               "published",
             ),
+
             or(
               ilike(
                 tools.name,
@@ -259,6 +307,11 @@ export class PostgresToolRepository
                 tools.shortDescription,
                 pattern,
               ),
+
+              ilike(
+                tools.description,
+                pattern,
+              ),
             ),
           ),
         );
@@ -266,5 +319,101 @@ export class PostgresToolRepository
     return mapRows(
       rows,
     );
+  }
+
+  async findPublicDownloadBySlug(
+    slug: string,
+  ): Promise<PublicToolDownload | null> {
+    const rows =
+      await db
+        .select({
+          slug:
+            tools.slug,
+
+          priceCents:
+            tools.priceCents,
+
+          fileKey:
+            toolVersions.fileKey,
+
+          checksum:
+            toolVersions.checksum,
+
+          originalFileName:
+            toolVersions.originalFileName,
+
+          contentType:
+            toolVersions.contentType,
+
+          fileSizeBytes:
+            toolVersions.fileSizeBytes,
+
+          isActive:
+            toolVersions.isActive,
+
+          versionToolId:
+            toolVersions.toolId,
+
+          toolId:
+            tools.id,
+        })
+        .from(tools)
+        .innerJoin(
+          toolVersions,
+          eq(
+            toolVersions.id,
+            tools.currentVersionId,
+          ),
+        )
+        .where(
+          and(
+            eq(
+              tools.slug,
+              slug,
+            ),
+            eq(
+              tools.status,
+              "published",
+            ),
+          ),
+        )
+        .limit(1);
+
+    const row =
+      rows[0];
+
+    if (
+      !row ||
+      !row.fileKey ||
+      !row.checksum ||
+      !row.isActive ||
+      row.versionToolId !==
+        row.toolId
+    ) {
+      return null;
+    }
+
+    return {
+      slug:
+        row.slug,
+
+      priceCents:
+        row.priceCents,
+
+      fileKey:
+        row.fileKey,
+
+      checksum:
+        row.checksum,
+
+      originalFileName:
+        row.originalFileName,
+
+      contentType:
+        row.contentType,
+
+      fileSizeBytes:
+        row.fileSizeBytes,
+    };
   }
 }

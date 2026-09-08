@@ -53,7 +53,7 @@ export default async function PublishPage({
         </h1>
 
         <p className="mt-3 text-neutral-400">
-          Create a draft. File upload and review will be added next.
+          Create a draft. You can upload versions and publish from the dashboard.
         </p>
 
         {error ? (

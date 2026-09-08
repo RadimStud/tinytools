@@ -7,6 +7,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 export const toolStatusEnum =
@@ -104,6 +105,19 @@ export const tools = pgTable.withRLS(
         .notNull()
         .default("draft"),
 
+    currentVersionId:
+      uuid(
+        "current_version_id",
+      )
+        .references(
+          (): AnyPgColumn =>
+            toolVersions.id,
+          {
+            onDelete:
+              "restrict",
+          },
+        ),
+
     createdAt:
       timestamp(
         "created_at",
@@ -195,6 +209,19 @@ export const toolVersions =
       checksum:
         text("checksum"),
 
+      originalFileName:
+        text(
+          "original_file_name",
+        ),
+
+      contentType:
+        text("content_type"),
+
+      fileSizeBytes:
+        integer(
+          "file_size_bytes",
+        ),
+
       isActive:
         boolean("is_active")
           .notNull()
@@ -211,6 +238,21 @@ export const toolVersions =
           .defaultNow()
           .notNull(),
     },
+    (table) => [
+      uniqueIndex(
+        "tool_versions_tool_id_version_unique",
+      ).on(
+        table.toolId,
+        table.version,
+      ),
+
+      uniqueIndex(
+        "tool_versions_id_tool_id_unique",
+      ).on(
+        table.id,
+        table.toolId,
+      ),
+    ],
   );
 
 export const toolRequests =

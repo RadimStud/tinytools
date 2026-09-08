@@ -142,7 +142,17 @@ export default async function DashboardPage({
                           {tool.name}
                         </h2>
 
-                        <span className="rounded-full border border-neutral-700 px-2.5 py-1 text-xs uppercase tracking-wide text-neutral-400">
+                        <span
+                          className={`rounded-full border px-2.5 py-1 text-xs uppercase tracking-wide ${
+                            tool.status ===
+                            "published"
+                              ? "border-emerald-800 text-emerald-300"
+                              : tool.status ===
+                                  "archived"
+                                ? "border-amber-800 text-amber-300"
+                                : "border-neutral-700 text-neutral-400"
+                          }`}
+                        >
                           {tool.status}
                         </span>
                       </div>

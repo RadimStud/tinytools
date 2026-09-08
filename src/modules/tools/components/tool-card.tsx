@@ -39,8 +39,16 @@ export function ToolCard({
           </p>
         </div>
 
-        <div className="shrink-0 font-medium text-neutral-200">
-          {formatPrice(tool.priceCents)}
+        <div className="shrink-0 text-right">
+          <div className="font-medium text-neutral-200">
+            {formatPrice(tool.priceCents)}
+          </div>
+
+          {tool.release ? (
+            <div className="mt-2 text-xs text-neutral-500">
+              {tool.release.version}
+            </div>
+          ) : null}
         </div>
       </div>
 

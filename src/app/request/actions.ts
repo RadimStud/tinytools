@@ -14,9 +14,20 @@ export async function createToolRequest(
       ) ?? "",
     );
 
-  await services.requests.createRequest(
-    description,
-  );
+  try {
+    await services.requests.createRequest(
+      description,
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Could not submit request.";
+
+    redirect(
+      `/request?error=${encodeURIComponent(message)}`,
+    );
+  }
 
   redirect(
     "/request/success",

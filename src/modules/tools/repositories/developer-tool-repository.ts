@@ -9,6 +9,8 @@ import type {
 import type {
   AttachDeveloperToolVersionFileInput,
   CreateDeveloperToolVersionInput,
+  PublishDeveloperToolInput,
+  SetCurrentReleaseInput,
   UpdateDeveloperToolInput,
 } from "../domain/developer-tool-management";
 
@@ -35,8 +37,11 @@ export interface DeveloperToolRepository {
   ): Promise<boolean>;
 
   publishForOwner(
-    toolId: string,
-    ownerId: string,
+    input: PublishDeveloperToolInput,
+  ): Promise<boolean>;
+
+  setCurrentReleaseForOwner(
+    input: SetCurrentReleaseInput,
   ): Promise<boolean>;
 
   archiveForOwner(

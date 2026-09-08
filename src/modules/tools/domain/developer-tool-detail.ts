@@ -12,6 +12,9 @@ export type DeveloperToolVersion = {
   version: string;
   fileKey: string | null;
   checksum: string | null;
+  originalFileName: string | null;
+  contentType: string | null;
+  fileSizeBytes: number | null;
   isActive: boolean;
   createdAt: Date;
 };
@@ -26,6 +29,7 @@ export type DeveloperToolDetail = {
   priceCents: number;
   currency: string;
   status: DeveloperToolStatus;
+  currentVersionId: string | null;
   platforms: ToolPlatform[];
   versions: DeveloperToolVersion[];
   createdAt: Date;

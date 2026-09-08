@@ -5,6 +5,7 @@ import { createToolRequest } from "./actions";
 type RequestPageProps = {
   searchParams: Promise<{
     problem?: string;
+    error?: string;
   }>;
 };
 
@@ -16,6 +17,9 @@ export default async function RequestPage({
 
   const problem =
     params.problem ?? "";
+
+  const error =
+    params.error;
 
   return (
     <main className="min-h-screen bg-neutral-950 px-6 py-16 text-neutral-100">
@@ -34,6 +38,12 @@ export default async function RequestPage({
         <p className="mt-3 text-neutral-400">
           Describe a small software problem you wish someone would solve.
         </p>
+
+        {error ? (
+          <div className="mt-6 rounded-xl border border-red-900 bg-red-950/30 p-4 text-sm text-red-300">
+            {error}
+          </div>
+        ) : null}
 
         <form
           action={createToolRequest}
