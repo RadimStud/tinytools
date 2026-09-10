@@ -1,3 +1,7 @@
+import { AdminAuthorizationService } from "@/modules/admin/services/admin-authorization-service";
+import { AdminService } from "@/modules/admin/services/admin-service";
+import { PostgresAdminRepository } from "@/modules/admin/repositories/postgres-admin-repository";
+
 import { AuthService } from "@/modules/auth/services/auth-service";
 
 import { PostgresToolRequestRepository } from "@/modules/requests/repositories/postgres-tool-request-repository";
@@ -28,11 +32,22 @@ const toolPublishingRepository =
 const developerToolRepository =
   new PostgresDeveloperToolRepository();
 
+const adminRepository =
+  new PostgresAdminRepository();
+
+const authService =
+  new AuthService(
+    userRepository,
+  );
+
+const adminAuthorization =
+  new AdminAuthorizationService(
+    authService,
+  );
+
 export const services = {
   auth:
-    new AuthService(
-      userRepository,
-    ),
+    authService,
 
   tools:
     new ToolService(
@@ -52,5 +67,14 @@ export const services = {
   developerTools:
     new DeveloperToolService(
       developerToolRepository,
+    ),
+
+  adminAuth:
+    adminAuthorization,
+
+  admin:
+    new AdminService(
+      adminAuthorization,
+      adminRepository,
     ),
 };

@@ -6,6 +6,10 @@ import {
 } from "@/app/auth/actions";
 
 import {
+  isAdminUser,
+} from "@/modules/users/domain/user";
+
+import {
   services,
 } from "@/server/services";
 
@@ -71,6 +75,17 @@ export default async function DashboardPage({
             <span className="hidden text-sm text-neutral-500 sm:inline">
               {appUser.displayName}
             </span>
+
+            {isAdminUser(
+              appUser,
+            ) ? (
+              <Link
+                href="/admin"
+                className="rounded-xl border border-neutral-800 px-4 py-2 text-sm text-neutral-300 hover:border-neutral-600"
+              >
+                Admin
+              </Link>
+            ) : null}
 
             <form
               action={logout}

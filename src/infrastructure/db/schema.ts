@@ -30,6 +30,15 @@ export const platformEnum =
     ],
   );
 
+export const userRoleEnum =
+  pgEnum(
+    "user_role",
+    [
+      "user",
+      "admin",
+    ],
+  );
+
 export const users = pgTable.withRLS(
   "users",
   {
@@ -44,6 +53,11 @@ export const users = pgTable.withRLS(
     displayName:
       text("display_name")
         .notNull(),
+
+    role:
+      userRoleEnum("role")
+        .notNull()
+        .default("user"),
 
     createdAt:
       timestamp(

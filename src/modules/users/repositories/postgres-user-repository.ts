@@ -27,6 +27,7 @@ function mapUser(
       row.authUserId,
     displayName:
       row.displayName,
+    role: row.role,
     createdAt:
       row.createdAt,
   };
@@ -67,6 +68,8 @@ export class PostgresUserRepository
       );
 
     if (existing) {
+      // Preserve role and other persisted fields.
+      // Never upsert an existing admin back to the default user role.
       return existing;
     }
 

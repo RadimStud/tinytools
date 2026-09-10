@@ -33,6 +33,15 @@ Apply the explicit current-release SQL as well (unique version constraint, file 
 
 ```bash
 psql "$DATABASE_URL" -f drizzle/0001_explicit_current_release.sql
+psql "$DATABASE_URL" -f drizzle/0002_admin_roles.sql
+```
+
+Promote a single operator after the role migration (never grant admin to everyone):
+
+```sql
+UPDATE users
+SET role = 'admin'
+WHERE auth_user_id = '<supabase-auth-user-uuid>';
 ```
 
 If you already use `db:push` after pulling this schema, still run that SQL file so the composite `tools_current_version_same_tool_fk` constraint exists. It is idempotent.
