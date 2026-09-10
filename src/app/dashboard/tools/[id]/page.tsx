@@ -167,6 +167,7 @@ export default async function ToolManagementPage({
               </h1>
 
               <span
+                aria-label={`Status ${tool.status}`}
                 className={`rounded-full border px-3 py-1 text-xs uppercase tracking-wide ${statusClass(tool.status)}`}
               >
                 {tool.status}
@@ -466,10 +467,11 @@ export default async function ToolManagementPage({
                       );
 
                     return (
-                      <div
+                      <article
                         key={
                           version.id
                         }
+                        aria-label={`Version ${version.version}`}
                         className="rounded-xl border border-neutral-800 bg-neutral-950 p-4"
                       >
                         <div className="flex items-center justify-between gap-3">
@@ -542,7 +544,7 @@ export default async function ToolManagementPage({
                         <p className="mt-2 text-xs text-neutral-700">
                           {version.createdAt.toLocaleString()}
                         </p>
-                      </div>
+                      </article>
                     );
                   },
                 )}
@@ -551,7 +553,10 @@ export default async function ToolManagementPage({
           </section>
         </div>
 
-        <section className="mt-6 rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+        <section
+          aria-label="Current release details"
+          className="mt-6 rounded-2xl border border-neutral-800 bg-neutral-900 p-6"
+        >
           <h2 className="text-xl font-medium">
             Current release
           </h2>

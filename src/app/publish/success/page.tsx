@@ -30,7 +30,7 @@ export default async function PublishSuccessPage({
           href="/"
           className="mt-8 inline-block rounded-xl bg-neutral-100 px-6 py-3 font-medium text-neutral-950"
         >
-          Back to TinyTools
+          Back to MiniKit Market
         </Link>
       </div>
     </main>

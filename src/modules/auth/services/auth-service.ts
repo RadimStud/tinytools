@@ -75,7 +75,7 @@ export class AuthService {
       authUser.email
         ?.split("@")[0]
         ?.trim() ||
-      "TinyTools user";
+      "MiniKit user";
 
     return this.userRepository
       .findOrCreate({

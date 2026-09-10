@@ -39,7 +39,7 @@ export default async function SignupPage({
           href="/"
           className="text-sm text-neutral-500 hover:text-neutral-300"
         >
-          ← TinyTools
+          ← MiniKit Market
         </Link>
 
         <h1 className="mt-10 text-4xl font-semibold">
@@ -47,7 +47,7 @@ export default async function SignupPage({
         </h1>
 
         <p className="mt-3 text-neutral-400">
-          Create a TinyTools developer account.
+          Create a MiniKit Market developer account.
         </p>
 
         {error ? (

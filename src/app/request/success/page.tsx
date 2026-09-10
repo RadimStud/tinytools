@@ -9,14 +9,14 @@ export default function RequestSuccessPage() {
         </h1>
 
         <p className="mt-4 text-neutral-400">
-          The request is now stored in TinyTools.
+          The request is now stored in MiniKit Market.
         </p>
 
         <Link
           href="/"
           className="mt-8 inline-block rounded-xl bg-neutral-100 px-6 py-3 font-medium text-neutral-950"
         >
-          Back to TinyTools
+          Back to MiniKit Market
         </Link>
       </div>
     </main>

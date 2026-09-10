@@ -26,7 +26,7 @@ export default async function Home() {
         <div className="mx-auto max-w-5xl">
           <nav className="flex items-center justify-between">
             <div className="text-lg font-semibold">
-              TinyTools
+              MiniKit
             </div>
 
             <div className="flex gap-3">
@@ -66,15 +66,15 @@ export default async function Home() {
 
           <div className="mt-24 max-w-4xl">
             <p className="text-sm uppercase tracking-[0.25em] text-neutral-500">
-              Small software. Specific problems.
+              Small tools. Specific problems.
             </p>
 
             <h1 className="mt-6 text-5xl font-semibold tracking-tight md:text-7xl">
-              Find the tiny tool that solves exactly what you need.
+              MiniKit
             </h1>
 
             <p className="mt-6 max-w-2xl text-lg leading-8 text-neutral-400">
-              Lightweight utilities for jobs too small for heavyweight software.
+              MiniKit is a marketplace for small, focused software tools that solve specific problems.
             </p>
 
             <form
@@ -107,7 +107,7 @@ export default async function Home() {
               </h2>
 
               <p className="mt-2 text-neutral-500">
-                Initial TinyTools catalog.
+                Initial MiniKit catalog.
               </p>
             </div>
 

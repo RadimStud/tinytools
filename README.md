@@ -1,6 +1,12 @@
-# TinyTools
+# MiniKit Market
 
-Marketplace MVP for small, single-purpose desktop utilities.
+Marketplace MVP for small, focused software tools that solve specific problems.
+
+**Product name:** MiniKit Market  
+**Short brand:** MiniKit  
+**Repository / internal legacy name:** `tinytools`
+
+The GitHub repository, npm package name, database identifiers, and current production host may still use `tinytools`. That is intentional until infrastructure is renamed.
 
 ## Stack
 
@@ -50,10 +56,48 @@ If you already use `db:push` after pulling this schema, still run that SQL file 
 npm run db:seed
 ```
 
+## End-to-end smoke tests
+
+Playwright covers a real browser path: login, draft, upload to R2, publish, public download, archive.
+
+Credentials have **no defaults**. Never commit `E2E_EMAIL` or `E2E_PASSWORD`.
+
+Install the browser once:
+
+```bash
+npx playwright install chromium
+```
+
+Local app (terminal 1):
+
+```bash
+npm run dev
+```
+
+Local tests (terminal 2):
+
+```powershell
+$env:E2E_BASE_URL="http://localhost:3000"
+$env:E2E_EMAIL="..."
+$env:E2E_PASSWORD="..."
+npm run test:e2e
+```
+
+Production smoke currently targets the existing Vercel host (legacy `tinytools` project name):
+
+```powershell
+$env:E2E_BASE_URL="https://tinytools-ten.vercel.app"
+$env:E2E_EMAIL="..."
+$env:E2E_PASSWORD="..."
+npm run test:e2e:production
+```
+
+`npm test` remains Vitest only. Authenticated production E2E is not part of the push/PR CI workflow; use `.github/workflows/production-smoke.yml` (`workflow_dispatch`) after GitHub Secrets `E2E_EMAIL` and `E2E_PASSWORD` are set.
+
 ## Architecture
 
 UI and routes call services. Services use repository interfaces. PostgreSQL and R2 stay in `src/infrastructure`.
 
 See `docs/architecture/releases.md` and `docs/architecture/storage.md`.
 
-For a full handoff of the current-release work, read `CURSOR_IMPLEMENTATION_REPORT.md`.
+Historical handoff docs (`CURSOR_IMPLEMENTATION_REPORT.md`, `ADMIN_MVP_IMPLEMENTATION_REPORT.md`, `E2E_SMOKE_IMPLEMENTATION_REPORT.md`) still describe work done under the TinyTools name.

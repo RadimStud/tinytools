@@ -28,7 +28,7 @@ export default async function RequestPage({
           href="/"
           className="text-sm text-neutral-500 hover:text-neutral-300"
         >
-          ← TinyTools
+          ← MiniKit Market
         </Link>
 
         <h1 className="mt-8 text-4xl font-semibold">

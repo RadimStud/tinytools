@@ -68,7 +68,7 @@ export default async function DashboardPage({
             href="/"
             className="text-lg font-semibold"
           >
-            TinyTools
+            MiniKit Market
           </Link>
 
           <div className="flex items-center gap-3">
@@ -132,7 +132,7 @@ export default async function DashboardPage({
             </h2>
 
             <p className="mt-2 text-neutral-400">
-              Create your first TinyTools draft.
+              Create your first MiniKit Market draft.
             </p>
 
             <Link
@@ -148,6 +148,7 @@ export default async function DashboardPage({
               (tool) => (
                 <article
                   key={tool.id}
+                  aria-label={tool.name}
                   className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6"
                 >
                   <div className="flex items-start justify-between gap-6">

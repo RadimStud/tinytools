@@ -28,7 +28,7 @@ export default async function CheckEmailPage({
         </p>
 
         <p className="mt-2 text-neutral-500">
-          Confirm the address and you will be redirected back to TinyTools.
+          Confirm the address and you will be redirected back to MiniKit Market.
         </p>
 
         <Link

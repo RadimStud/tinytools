@@ -1,6 +1,6 @@
 # Releases
 
-TinyTools stores an explicit current public release on the tool row.
+MiniKit Market stores an explicit current public release on the tool row.
 
 ## Representation
 
