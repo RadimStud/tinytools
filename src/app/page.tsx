@@ -24,12 +24,12 @@ export default async function Home() {
     <main className="min-h-screen bg-neutral-950 text-neutral-100">
       <section className="px-6 pb-20 pt-24">
         <div className="mx-auto max-w-5xl">
-          <nav className="flex items-center justify-between">
+          <nav className="flex flex-wrap items-center justify-between gap-4">
             <div className="text-lg font-semibold">
               MiniKit
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <Link
                 href="/request"
                 className="rounded-xl border border-neutral-800 px-4 py-2 text-sm text-neutral-300"
@@ -95,6 +95,23 @@ export default async function Home() {
               </button>
             </form>
           </div>
+        </div>
+      </section>
+
+      <section className="border-t border-neutral-900 px-6 py-12">
+        <div className="mx-auto grid max-w-5xl gap-5 md:grid-cols-2">
+          <Link href="/workbench/csv-cleaner" className="rounded-2xl border border-emerald-900 bg-emerald-950/20 p-7 transition hover:border-emerald-500">
+            <p className="text-xs uppercase tracking-widest text-emerald-300">Try in your browser · Free</p>
+            <h2 className="mt-4 text-2xl font-semibold">CSV Cleaner</h2>
+            <p className="mt-3 text-sm leading-6 text-neutral-400">Remove duplicate rows, clear blanks and trim spaces. Preview the result. Your data stays in your browser.</p>
+            <span className="mt-5 inline-block text-sm text-emerald-300">Open CSV Cleaner →</span>
+          </Link>
+          <Link href="/community" className="rounded-2xl border border-neutral-800 bg-neutral-900/40 p-7 transition hover:border-neutral-500">
+            <p className="text-xs uppercase tracking-widest text-neutral-400">Build with us</p>
+            <h2 className="mt-4 text-2xl font-semibold">Small problems. Shared ideas.</h2>
+            <p className="mt-3 text-sm leading-6 text-neutral-400">Bring a use case, test a tool or help improve it. Shape what MiniKit builds next.</p>
+            <span className="mt-5 inline-block text-sm text-emerald-300">Join the community →</span>
+          </Link>
         </div>
       </section>
 

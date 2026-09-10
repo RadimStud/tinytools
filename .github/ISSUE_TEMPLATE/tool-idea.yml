@@ -1,0 +1,46 @@
+name: Suggest a small tool
+description: Describe a real task and the result you need.
+title: "[Idea] "
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks for helping shape MiniKit. This is a public discussion: use made-up examples and leave out personal or confidential data."
+  - type: textarea
+    id: problem
+    attributes:
+      label: What task are you trying to finish?
+      description: Tell us who this helps and how often the task comes up.
+    validations:
+      required: true
+  - type: textarea
+    id: workaround
+    attributes:
+      label: How do you do it today?
+      description: Existing tools, manual steps, and what is missing.
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Example input and desired output
+      description: Use a small synthetic example, not real work data.
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Where would you use it?
+      options:
+        - Browser
+        - Windows
+        - macOS
+        - Linux
+        - Other
+    validations:
+      required: true
+  - type: checkboxes
+    id: testing
+    attributes:
+      label: Participation
+      options:
+        - label: I would be interested in testing an early version in this issue.
