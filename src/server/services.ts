@@ -16,6 +16,9 @@ import { ToolPublishingService } from "@/modules/tools/services/tool-publishing-
 import { ToolService } from "@/modules/tools/services/tool-service";
 
 import { PostgresUserRepository } from "@/modules/users/repositories/postgres-user-repository";
+import { PostgresVaultRepository } from "@/modules/superuser/repositories/postgres-vault-repository";
+import { VaultService } from "@/modules/superuser/services/vault-service";
+import { createUploadUrl, createDownloadUrl, headFile, deleteFile } from "@/infrastructure/storage/r2-storage";
 
 const userRepository =
   new PostgresUserRepository();
@@ -46,6 +49,12 @@ const adminAuthorization =
   );
 
 export const services = {
+  vault: new VaultService(authService, new PostgresVaultRepository(), {
+    uploadUrl: key => createUploadUrl(key, "application/octet-stream", 300),
+    downloadUrl: (key, name) => createDownloadUrl(key, { fileName: name, contentType: "application/octet-stream", expiresIn: 60 }),
+    size: async key => (await headFile(key)).fileSizeBytes,
+    remove: deleteFile,
+  }),
   auth:
     authService,
 

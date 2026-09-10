@@ -1,5 +1,8 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
+  index,
   integer,
   pgEnum,
   pgTable,
@@ -315,3 +318,23 @@ export const toolRequests =
           .notNull(),
     },
   );
+
+
+export const superuserPermissions = pgTable.withRLS("superuser_permissions", {
+  userId: uuid("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  grantedAt: timestamp("granted_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [check("superuser_single_owner", sql`${table.userId} = '2e954c50-23d5-4e68-be4c-ff9a61a697ad'::uuid`)]);
+
+export const vaultFiles = pgTable.withRLS("vault_files", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  ownerId: uuid("owner_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  name: text("name").notNull(),
+  fileKey: text("file_key").notNull().unique(),
+  sizeBytes: integer("size_bytes").notNull(),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [
+  check("vault_files_size_bytes_check", sql`${table.sizeBytes} > 0 AND ${table.sizeBytes} <= 262144000`),
+  check("vault_files_status_check", sql`${table.status} IN ('pending', 'ready', 'deleted')`),
+  index("vault_files_owner_created_idx").on(table.ownerId, table.createdAt.desc()),
+]);
