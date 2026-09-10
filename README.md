@@ -94,6 +94,17 @@ npm run test:e2e:production
 
 `npm test` remains Vitest only. Authenticated production E2E is not part of the push/PR CI workflow; use `.github/workflows/production-smoke.yml` (`workflow_dispatch`) after GitHub Secrets `E2E_EMAIL` and `E2E_PASSWORD` are set.
 
+## Private superuser workspace
+
+The designated owner has a Matrix-inspired private file vault at `/superuser`,
+accessible through the **Superuser** dashboard button. The permission is separate
+from admin and constrained to the single owner account in the database.
+
+Before deploying this feature, run `node scripts/migrate-superuser.mjs` against
+the deployment database using your local `.env.local`. See
+[`docs/architecture/superuser-vault.md`](docs/architecture/superuser-vault.md)
+for deployment order, storage behavior and verification.
+
 ## Architecture
 
 UI and routes call services. Services use repository interfaces. PostgreSQL and R2 stay in `src/infrastructure`.

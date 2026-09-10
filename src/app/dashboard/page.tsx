@@ -54,6 +54,8 @@ export default async function DashboardPage({
     created,
   } = await searchParams;
 
+  const superuser = await services.vault.canAccess(appUser.id);
+
   const tools =
     await services.developerTools
       .getToolsForOwner(
@@ -84,6 +86,12 @@ export default async function DashboardPage({
                 className="rounded-xl border border-neutral-800 px-4 py-2 text-sm text-neutral-300 hover:border-neutral-600"
               >
                 Admin
+              </Link>
+            ) : null}
+
+            {superuser ? (
+              <Link href="/superuser" className="rounded-xl border border-emerald-500/50 bg-emerald-950/50 px-4 py-2 font-mono text-sm text-emerald-300 hover:bg-emerald-900/50">
+                Superuser
               </Link>
             ) : null}
 
