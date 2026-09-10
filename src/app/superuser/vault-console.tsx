@@ -22,7 +22,7 @@ function putFile(url: string, file: File, progress: (value: number) => void) {
     xhr.timeout = 15 * 60 * 1000;
     xhr.upload.onprogress = event => { if (event.lengthComputable) progress(Math.round(event.loaded / event.total * 100)); };
     xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed (${xhr.status}).`));
-    xhr.onerror = () => reject(new Error("Upload connection failed. Check your connection and R2 CORS settings."));
+    xhr.onerror = () => reject(new Error("Upload connection failed. Check your connection and try again."));
     xhr.ontimeout = () => reject(new Error("Upload timed out. Try again."));
     xhr.send(file);
   });
@@ -32,6 +32,7 @@ export function VaultConsole({ initialFiles }: { initialFiles: PublicVaultFile[]
   const [files, setFiles] = useState(initialFiles);
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState("Private workspace ready.");
   const [error, setError] = useState("");
@@ -46,7 +47,7 @@ export function VaultConsole({ initialFiles }: { initialFiles: PublicVaultFile[]
   async function upload(selected: File[]) {
     if (inFlight.current || !selected.length) return;
     inFlight.current = true;
-    setBusy(true); setError("");
+    setBusy(true); setUploading(true); setError("");
     try {
       for (const file of selected) {
         if (!file.size || file.size > MAX_VAULT_FILE_SIZE) throw new Error(`${file.name}: choose a non-empty file up to 250 MB.`);
@@ -61,18 +62,19 @@ export function VaultConsole({ initialFiles }: { initialFiles: PublicVaultFile[]
       setError(reason instanceof Error ? reason.message : "Upload failed.");
       setMessage("Upload interrupted. You can finish or remove a pending file below.");
       try { await refresh(); } catch { /* Preserve the actionable upload error. */ }
-    } finally { setBusy(false); inFlight.current = false; if (input.current) input.current.value = ""; }
+    } finally { setBusy(false); setUploading(false); inFlight.current = false; if (input.current) input.current.value = ""; }
   }
 
   async function changeFile(file: PublicVaultFile, method: "POST" | "DELETE") {
     if (inFlight.current) return;
     if (method === "DELETE" && !window.confirm(`Delete ${file.name} from your vault?`)) return;
     inFlight.current = true; setBusy(true); setError("");
+    setMessage(method === "DELETE" ? `Deleting ${file.name}…` : `Checking ${file.name}…`);
     try {
       await api(`/api/superuser/files/${file.id}`, method);
       await refresh();
       setMessage(method === "DELETE" ? `${file.name} deleted.` : `${file.name} is ready.`);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Operation failed."); }
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Operation failed."); setMessage("Operation interrupted. Try again."); }
     finally { setBusy(false); inFlight.current = false; }
   }
 
@@ -110,11 +112,11 @@ export function VaultConsole({ initialFiles }: { initialFiles: PublicVaultFile[]
           onDragLeave={() => setDragging(false)}
           onDrop={event => { event.preventDefault(); setDragging(false); void upload(Array.from(event.dataTransfer.files)); }}>
           <Upload size={30} strokeWidth={1.3} />
-          <h2>{busy ? "Transfer in progress" : "Drop something worth keeping."}</h2>
+          <h2>{uploading ? "Transfer in progress" : "Drop something worth keeping."}</h2>
           <p>Any file type. Up to 250 MB per file. Only you have access.</p>
           <input ref={input} type="file" multiple aria-label="Choose vault files" className="vault-file-input" disabled={busy} onChange={event => void upload(Array.from(event.target.files || []))} />
-          <button className="vault-primary" disabled={busy} onClick={() => input.current?.click()}><Upload size={16} /> {busy ? `Uploading ${progress}%` : "Choose files"}</button>
-          {busy ? <progress max={100} value={progress} aria-label="Upload progress" /> : null}
+          <button className="vault-primary" disabled={busy} onClick={() => input.current?.click()}><Upload size={16} /> {uploading ? `Uploading ${progress}%` : "Choose files"}</button>
+          {uploading ? <progress max={100} value={progress} aria-label="Upload progress" /> : null}
         </section>
 
         <div className="vault-notice" role="status"><Terminal size={14} /><span>{message}</span></div>

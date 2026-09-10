@@ -63,3 +63,16 @@ Remove-Item Env:E2E_SUPERUSER
 
 The UI supports keyboard file selection, drag/drop, multiple sequential uploads,
 progress, search, pending-upload recovery, deletion confirmation and reduced motion.
+
+The owner E2E test also checks 1280/390/320 px layouts, takes screenshots in its
+test output directory, tests search and confirms that cancelling deletion keeps
+the file. Inspect these screenshots before deployment; overflow checks alone do
+not establish visual quality.
+
+`tests/e2e/superuser-denied.spec.ts` covers a real signed-in account without the
+permission: no dashboard button, a redirect from the vault, and HTTP 403 for all
+five API operations using the authenticated browser cookies. Set
+`E2E_NON_SUPERUSER=1`, `E2E_NON_SUPERUSER_EMAIL` and
+`E2E_NON_SUPERUSER_PASSWORD` for a separate existing account before running it.
+Do not remove or reassign the owner's permission to run this test. Without opt-in
+the test is skipped, not counted as a verified denial.

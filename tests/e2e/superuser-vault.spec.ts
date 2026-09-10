@@ -16,12 +16,27 @@ test("superuser can upload, download and delete a private file", async ({ page }
   await expect(page).toHaveURL(/\/dashboard/);
   await page.getByRole("link", { name: "Superuser", exact: true }).click();
   await expect(page).toHaveURL(/\/superuser$/);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  for (const width of [1280, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Choose files", exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`vault-${width}.png`), fullPage: true });
+  }
   const origin = new URL(page.url()).origin;
   try {
     await page.getByLabel("Choose vault files").setInputFiles({ name, mimeType: "text/plain", buffer: Buffer.from(content) });
     const row = page.getByRole("article", { name, exact: true });
     const link = row.getByRole("link", { name: `Download ${name}`, exact: true });
     await expect(link).toBeVisible({ timeout: 120_000 });
+    await page.getByLabel("Search files", { exact: true }).fill(name);
+    await expect(page.getByRole("article")).toHaveCount(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath("vault-mobile-file.png"), fullPage: true });
+    await page.getByLabel("Search files", { exact: true }).fill(`no-match-${randomUUID()}`);
+    await expect(page.getByText("No files match your search.", { exact: true })).toBeVisible();
+    await page.getByLabel("Search files", { exact: true }).fill(name);
     const downloadEvent = page.waitForEvent("download");
     await link.click();
     const download = await downloadEvent;
@@ -29,6 +44,9 @@ test("superuser can upload, download and delete a private file", async ({ page }
     const local = path.join(testInfo.outputDir, name);
     await download.saveAs(local);
     expect(await fs.readFile(local, "utf8")).toBe(content);
+    page.once("dialog", dialog => dialog.dismiss());
+    await row.getByRole("button", { name: `Delete ${name}`, exact: true }).click();
+    await expect(row).toBeVisible();
     page.once("dialog", dialog => dialog.accept());
     await row.getByRole("button", { name: `Delete ${name}`, exact: true }).click();
     await expect(row).toHaveCount(0);
