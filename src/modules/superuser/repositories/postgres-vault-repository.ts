@@ -2,9 +2,11 @@ import { sql } from "@/infrastructure/db/client";
 import type { VaultFile } from "../domain/vault";
 import type { VaultRepository } from "./vault-repository";
 
-type Row = { id: string; owner_id: string; name: string; file_key: string; size_bytes: number; status: VaultFile["status"]; created_at: Date };
+type Row = { id: string; owner_id: string; name: string; file_key: string; size_bytes: number; status: VaultFile["status"]; created_at: Date | string };
 function map(row: Row): VaultFile {
-  return { id: row.id, ownerId: row.owner_id, name: row.name, fileKey: row.file_key, sizeBytes: row.size_bytes, status: row.status, createdAt: row.created_at };
+  const createdAt = row.created_at instanceof Date ? row.created_at : new Date(row.created_at);
+  if (Number.isNaN(createdAt.getTime())) throw new Error("Invalid vault file timestamp.");
+  return { id: row.id, ownerId: row.owner_id, name: row.name, fileKey: row.file_key, sizeBytes: row.size_bytes, status: row.status, createdAt };
 }
 export class PostgresVaultRepository implements VaultRepository {
   async hasPermission(userId: string) {
