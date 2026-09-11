@@ -38,7 +38,7 @@ test("malformed input cannot produce a stale download", async ({ page }) => {
   await page.getByRole("button", { name: "Clean CSV", exact: true }).click();
   await page.getByLabel("Or paste CSV").fill('a,b\n"unclosed');
   await page.getByRole("button", { name: "Clean CSV", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("not closed");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("not closed");
   await expect(page.getByRole("button", { name: "Download cleaned CSV" })).toHaveCount(0);
 });
 

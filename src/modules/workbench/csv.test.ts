@@ -34,6 +34,10 @@ describe("CSV workbench", () => {
     expect(parseCsv("a\tb\n1\t2", "\t")).toEqual([["a", "b"], ["1", "2"]]);
     expect(parseCsv("", ",")).toEqual([]);
   });
+  it("preserves an intentionally retained single empty cell on export", () => {
+    const result = cleanCsv('""', { ...options, header: false, blankRows: false });
+    expect(parseCsv(result.output, ",")).toEqual([[""]]);
+  });
   it("rejects oversized and binary input", () => {
     expect(() => parseCsv("a".repeat(MAX_CSV_BYTES + 1), ",")).toThrow(/2 MiB/);
     expect(() => parseCsv("a\u0000", ",")).toThrow(/UTF-16/);

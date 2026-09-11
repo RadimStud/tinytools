@@ -38,7 +38,7 @@ export function parseCsv(text: string, delimiter: string): string[][] {
 }
 
 export function serializeCsv(rows: string[][], delimiter: string): string {
-  return rows.map(row => row.map(cell => /["\r\n]/.test(cell) || cell.includes(delimiter)
+  return rows.map(row => row.map(cell => /["\r\n]/.test(cell) || cell.includes(delimiter) || (row.length === 1 && cell === "")
     ? `"${cell.replaceAll('"', '""')}"` : cell).join(delimiter)).join("\r\n");
 }
 
