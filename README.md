@@ -105,6 +105,23 @@ the deployment database using your local `.env.local`. See
 [`docs/architecture/superuser-vault.md`](docs/architecture/superuser-vault.md)
 for deployment order, storage behavior and verification.
 
+## Browser workbench and community
+
+`/workbench/csv-cleaner` is a free CSV/TSV utility that processes file contents
+entirely in the browser (UTF-8, 2 MiB, 100,000 cells). It preserves text values,
+supports quoted/multiline fields, and previews trimming, duplicate removal and
+blank-row removal before exporting a new copy. No database migration is needed.
+
+`/community` links to the public issue templates and contribution guide. See
+[CONTRIBUTING.md](CONTRIBUTING.md) and the
+[market/opportunity analysis](docs/MINIKIT_MARKET_OPPORTUNITIES.md).
+
+After a production build, run the database-independent browser suite with
+`npx playwright test --config=playwright.workbench.config.ts`. The workbench CI
+workflow installs Chromium and saves screenshots/traces as a seven-day artifact.
+The production site can also be checked using the ordinary Playwright config:
+`npm run test:e2e -- tests/e2e/workbench.spec.ts` with `E2E_BASE_URL` set.
+
 ## Architecture
 
 UI and routes call services. Services use repository interfaces. PostgreSQL and R2 stay in `src/infrastructure`.
