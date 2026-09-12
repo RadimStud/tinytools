@@ -2,6 +2,7 @@
 
 Started: 2026-09-12. Baseline: `ec8fc5894c27496055ecb6a4c8c8ac6e75ae42c2`.
 This is a focused iteration, not closure of M2 or a full security certification.
+Pull request: https://github.com/RadimStud/tinytools/pull/4
 
 ## Changes and reasons
 
@@ -85,6 +86,7 @@ default branch. Its link in a preview may not work until merge.
 | Users/role protection | Audit actual DB grants, RLS policies and every profile mutation; ensure a user cannot write their role. Admin-only UI is not proof. |
 | Authenticated production E2E | Real login, marketplace upload/release/download/archive, owner vault round trip and non-owner denial; do not count skipped tests. |
 | Binary integrity | Server-side verification and immutable finalized objects remain separate from displaying a client-supplied checksum. |
+| Dependencies | The CI installation reported two moderate vulnerabilities. Obtain the detailed audit, assess affected code paths and fix deliberately; no forced dependency upgrade was performed here. |
 | First real users | Collect real task outcomes; CI passes and GitHub stars are not active users. |
 
 ## First-user experiment
@@ -98,12 +100,44 @@ outreach campaign before the operational gates above are understood.
 
 ## Validation record
 
-- Native Node 22 TypeScript-stripping check: 24 safe-redirect vectors passed.
-- Full lint, Vitest, build and browser results: to be filled from GitHub Actions
-  after this commit; no local dependency installation/build was claimed.
-- The editing runtime has no GitHub/npm DNS access. Source was read/written using
-  the authorized GitHub connector. Direct web fetching of the deployment was not
-  available; live availability will be established by the public CI job.
+Verified 2026-09-12 against proposed code commit
+`163c9c9d71a42ff7d555f9c9e887373e25d22ce0` (subsequent report-only edits do not
+change application or test code):
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| ESLint | PASS | CI run 34692174504, job 103549253516 |
+| Vitest | PASS: 93 tests, 13 files | Same CI run; test log inspected |
+| Production build | PASS, including TypeScript | Same CI run; Next.js 16.3.4 |
+| Proposed-build browser suite | PASS: 6 tests | Workbench run 34692174526, job 103549253641 |
+| Live anonymous production suite | PASS: 14 tests; 0 skipped, 0 flaky, 0 unexpected | Public beta run 34692174500, job 103549253603; downloaded HTML report data inspected |
+| Responsive screenshots | Reviewed at 320, 390 and 1280 px | Workbench artifact 10298310144; readable layout and expected horizontal preview-table scrolling at narrow widths |
+| Native redirect checks | PASS: 24 vectors plus 2,744 generated same-origin checks | Node 22.16.0 with experimental TypeScript stripping in editing runtime |
+
+Runs:
+
+- https://github.com/RadimStud/tinytools/actions/runs/34692174504
+- https://github.com/RadimStud/tinytools/actions/runs/34692174526
+- https://github.com/RadimStud/tinytools/actions/runs/34692174500
+
+The public production suite consists of five beta-readiness, four existing public
+and five existing workbench tests. It exercised the current production site at
+https://tinytools-ten.vercel.app, not the proposed auth/health patch or the new
+feedback page. The six proposed-build browser tests include the feedback-link
+check. Route unit tests exercise the new auth/health behavior with mocks.
+
+The initial revision had a missing closing brace on the CSV feedback page;
+ESLint caught it and it was corrected before these successful runs. No lint or
+TypeScript checks were disabled.
+
+Full npm installation/lint/test/build/browser validation ran in GitHub Actions,
+not the local editing runtime, which could not resolve GitHub/npm DNS. Source
+was read and written through the authorized connector. CI also reported two
+moderate dependency vulnerabilities; this is not a clean security-audit result.
+
+The PR remains a proposed change until merged; production patch deployment,
+credential rotation, restore testing, real-user outcomes and authenticated
+production tests are not claimed as completed.
 
 ## Primary documentation consulted
 
