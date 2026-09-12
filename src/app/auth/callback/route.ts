@@ -1,74 +1,33 @@
-import {
-  NextResponse,
-  type NextRequest,
-} from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { createSupabaseServerClient } from "@/infrastructure/supabase/server-client";
+import { safeRedirectPath } from "@/modules/auth/domain/safe-redirect";
+import { services } from "@/server/services";
 
-import {
-  createSupabaseServerClient,
-} from "@/infrastructure/supabase/server-client";
+const authErrorPath = "/login?error=Authentication%20could%20not%20be%20completed.%20Please%20sign%20in%20again.";
 
-import {
-  services,
-} from "@/server/services";
+function redirectTo(path: string, origin: string) {
+  const response = NextResponse.redirect(new URL(path, origin));
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
+}
 
-export async function GET(
-  request: NextRequest,
-) {
-  const requestUrl =
-    new URL(
-      request.url,
-    );
+export async function GET(request: NextRequest) {
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+  if (!code) return redirectTo("/login?error=Missing%20authentication%20code", url.origin);
 
-  const code =
-    requestUrl.searchParams
-      .get("code");
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) return redirectTo(authErrorPath, url.origin);
 
-  const next =
-    requestUrl.searchParams
-      .get("next") ||
-    "/dashboard";
-
-  if (!code) {
-    return NextResponse.redirect(
-      new URL(
-        "/login?error=Missing%20authentication%20code",
-        requestUrl.origin,
-      ),
-    );
+    const user = await services.auth.syncCurrentUser();
+    if (!user) return redirectTo(authErrorPath, url.origin);
+  } catch {
+    // Never log the callback code, session tokens or an upstream error payload.
+    console.error("Authentication callback failed.");
+    return redirectTo(authErrorPath, url.origin);
   }
 
-  const supabase =
-    await createSupabaseServerClient();
-
-  const {
-    error,
-  } =
-    await supabase.auth
-      .exchangeCodeForSession(
-        code,
-      );
-
-  if (error) {
-    return NextResponse.redirect(
-      new URL(
-        `/login?error=${encodeURIComponent(error.message)}`,
-        requestUrl.origin,
-      ),
-    );
-  }
-
-  await services.auth
-    .syncCurrentUser();
-
-  const safeNext =
-    next.startsWith("/")
-      ? next
-      : "/dashboard";
-
-  return NextResponse.redirect(
-    new URL(
-      safeNext,
-      requestUrl.origin,
-    ),
-  );
+  return redirectTo(safeRedirectPath(url.searchParams.get("next")), url.origin);
 }
