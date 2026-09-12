@@ -1,0 +1,47 @@
+name: Public beta checks
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/e2e/**'
+      - 'playwright.public.config.ts'
+      - '.github/workflows/public-beta-checks.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-beta-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  public-production:
+    # No fork code and no secrets. This tests the CURRENT production release,
+    # not a deployment of the PR. CI/workbench separately test the PR build.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      E2E_PUBLIC_BASE_URL: https://tinytools-ten.vercel.app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - run: npx playwright test --config=playwright.public.config.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-beta-results
+          path: |
+            playwright-report/public/
+            test-results/public/
+          retention-days: 7

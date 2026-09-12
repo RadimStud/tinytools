@@ -1,0 +1,48 @@
+name: CSV Cleaner feedback
+description: Tell us whether CSV Cleaner solved a real task. Do not share private data.
+title: "[CSV feedback] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying MiniKit. This is a PUBLIC GitHub issue.
+        Do not paste customer/work records, credentials, personal data or original files.
+        A made-up input/output example is enough. Nothing is submitted from the cleaner automatically.
+  - type: dropdown
+    id: outcome
+    attributes:
+      label: Did it solve your task?
+      options:
+        - "Yes"
+        - Partly
+        - "No"
+        - I could not finish
+    validations:
+      required: true
+  - type: textarea
+    id: task
+    attributes:
+      label: What were you trying to do?
+      description: Describe the repetitive task without identifying people or organizations.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: What worked or got in your way?
+      description: Expected output versus actual output; include only a synthetic example if useful.
+    validations:
+      required: true
+  - type: dropdown
+    id: repeat
+    attributes:
+      label: Have you used it for this task before?
+      options:
+        - First time
+        - I have returned to use it again
+        - Prefer not to say
+  - type: input
+    id: environment
+    attributes:
+      label: Browser / operating system (optional)
+      placeholder: e.g. Firefox on Windows

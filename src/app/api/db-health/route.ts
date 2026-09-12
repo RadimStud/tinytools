@@ -1,46 +1,27 @@
-﻿import {
-  NextResponse,
-} from "next/server";
+import { NextResponse } from "next/server";
 
-import { sql } from "@/infrastructure/db/client";
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+const headers = { "Cache-Control": "private, no-store" };
 
 export async function GET() {
   try {
-    const result =
-      await sql`
-        select
-          current_timestamp
-            as now
-      `;
-
+    // Include configuration/import failures in the redacted failure response.
+    const { sql } = await import("@/infrastructure/db/client");
+    const result = await sql`select current_timestamp as now`;
+    if (!result[0]?.now) throw new Error("Missing database timestamp.");
     return NextResponse.json({
-      service:
-        "tinytools-database",
-
-      status:
-        "ok",
-
-      databaseTime:
-        result[0]?.now,
-    });
-  }
-  catch (error) {
-    return NextResponse.json(
-      {
-        service:
-          "tinytools-database",
-
-        status:
-          "error",
-
-        message:
-          error instanceof Error
-            ? error.message
-            : "Unknown database error",
-      },
-      {
-        status: 500,
-      },
-    );
+      service: "tinytools-database",
+      status: "ok",
+      databaseTime: result[0].now,
+    }, { headers });
+  } catch {
+    // A public health check must not disclose SQL, credentials or host details.
+    console.error("Database health probe failed.");
+    return NextResponse.json({
+      service: "tinytools-database",
+      status: "error",
+      message: "Database temporarily unavailable.",
+    }, { status: 503, headers });
   }
 }
