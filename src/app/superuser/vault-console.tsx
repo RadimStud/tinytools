@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { ArrowDownToLine, ArrowLeft, File as FileIcon, FolderLock, Search, ShieldCheck, Terminal, Trash2, Upload } from "lucide-react";
+import { ArrowDownToLine, ArrowLeft, ArrowUpRight, File as FileIcon, FolderLock, Search, ShieldCheck, Terminal, Trash2, Upload } from "lucide-react";
 import { MAX_VAULT_FILE_SIZE, type PublicVaultFile } from "@/modules/superuser/domain/vault";
 
 function sizeLabel(size: number) {
@@ -100,6 +100,15 @@ export function VaultConsole({ initialFiles }: { initialFiles: PublicVaultFile[]
             <span>PERSONAL VAULT / 01</span>
           </div>
         </header>
+
+        <section className="vault-orion" aria-label="ORION assistant">
+          <div>
+            <p className="vault-eyebrow">YOUR AI WORKSPACE</p>
+            <h2>ORION</h2>
+            <p>Six assistants. One place to think, plan and build.</p>
+          </div>
+          <Link href="/superuser/orion" prefetch={false} className="vault-primary">Open ORION <ArrowUpRight size={16} /></Link>
+        </section>
 
         <section className="vault-stats" aria-label="Vault overview">
           <div><span>FILES STORED</span><strong>{String(ready.length).padStart(2, "0")}</strong></div>

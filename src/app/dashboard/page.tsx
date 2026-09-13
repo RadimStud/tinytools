@@ -65,7 +65,7 @@ export default async function DashboardPage({
   return (
     <main className="min-h-screen bg-neutral-950 px-6 py-12 text-neutral-100">
       <div className="mx-auto max-w-5xl">
-        <nav className="flex items-center justify-between gap-4">
+        <nav className="flex flex-wrap items-center justify-between gap-4">
           <Link
             href="/"
             className="text-lg font-semibold"
@@ -73,7 +73,7 @@ export default async function DashboardPage({
             MiniKit Market
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <span className="hidden text-sm text-neutral-500 sm:inline">
               {appUser.displayName}
             </span>
@@ -86,6 +86,12 @@ export default async function DashboardPage({
                 className="rounded-xl border border-neutral-800 px-4 py-2 text-sm text-neutral-300 hover:border-neutral-600"
               >
                 Admin
+              </Link>
+            ) : null}
+
+            {superuser ? (
+              <Link href="/superuser/orion" prefetch={false} className="rounded-xl border border-cyan-500/50 bg-cyan-950/50 px-4 py-2 font-mono text-sm text-cyan-200 hover:bg-cyan-900/50">
+                Open ORION
               </Link>
             ) : null}
 

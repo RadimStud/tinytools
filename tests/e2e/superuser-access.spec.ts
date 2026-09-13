@@ -5,6 +5,11 @@ test("private vault redirects anonymous visitors", async ({ page }) => {
   await expect(page).toHaveURL(/\/login$/);
 });
 
+test("ORION entry redirects anonymous visitors even with a supplied destination", async ({ page }) => {
+  await page.goto("/superuser/orion?next=https://example.com");
+  await expect(page).toHaveURL(/\/login$/);
+});
+
 test("private vault API rejects anonymous list, uploads and file operations", async ({ request, baseURL }) => {
   const base = baseURL!;
   const root = "/api/superuser/files";
