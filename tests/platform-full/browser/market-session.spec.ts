@@ -1,8 +1,9 @@
 import fs from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { randomBytes, randomUUID } from "node:crypto";
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 
-const config = JSON.parse(await fs.readFile(".p2-local/test.json", "utf8"));
+const config = JSON.parse(readFileSync(".p2-local/test.json", "utf8"));
 const origin = "http://127.0.0.1:3100";
 if (config.MINIKIT_DEPLOYMENT_ENV !== "isolated-test" || config.MINIKIT_PLATFORM_ORIGIN !== origin) throw new Error("Disposable local providers required.");
 type Account = { email: string; password: string; name: string; context: BrowserContext; page: Page };
