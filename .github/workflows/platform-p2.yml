@@ -1,0 +1,60 @@
+name: Platform P2 real-provider integration
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['src/**', 'tests/**', 'scripts/p2-local.mjs', 'drizzle*', 'drizzle/**', 'package*.json', 'playwright.platform-full.config.ts', '.github/workflows/platform-p2.yml']
+permissions:
+  contents: read
+concurrency:
+  group: p2-isolated-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  real-provider:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/cache/restore@v4
+        id: storage-cache
+        with:
+          path: /tmp/minikit-p2-minio.tar
+          key: p2-minio-${{ runner.os }}-${{ hashFiles('tests/platform-full/Minio.Dockerfile') }}
+      - run: node scripts/p2-local.mjs prepare
+      - name: Reuse the isolated source-built storage image
+        run: |
+          if [ -f /tmp/minikit-p2-minio.tar ]; then
+            docker load -i /tmp/minikit-p2-minio.tar
+          else
+            docker compose --env-file .p2-local/docker.env -p minikit-p2-isolated -f tests/platform-full/compose.yml build storage
+            docker save minikit-p2-isolated-storage -o /tmp/minikit-p2-minio.tar
+          fi
+      - uses: actions/cache/save@v4
+        if: steps.storage-cache.outputs.cache-hit != 'true'
+        with:
+          path: /tmp/minikit-p2-minio.tar
+          key: p2-minio-${{ runner.os }}-${{ hashFiles('tests/platform-full/Minio.Dockerfile') }}
+      - run: docker compose --env-file .p2-local/docker.env -p minikit-p2-isolated -f tests/platform-full/compose.yml up -d --wait
+      - run: node scripts/p2-local.mjs seed
+      - run: node scripts/p2-local.mjs build
+      - run: npx playwright install chromium --with-deps
+      - run: npx playwright test --config=playwright.platform-full.config.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: platform-p2-sanitized-results
+          path: playwright-report/platform-full/
+          retention-days: 7
+      - name: Stop disposable services and discard local credentials
+        if: always()
+        run: |
+          if [ -f .p2-local/docker.env ]; then
+            docker compose --env-file .p2-local/docker.env -p minikit-p2-isolated -f tests/platform-full/compose.yml down --volumes
+          fi
+          rm -rf .p2-local

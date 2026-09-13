@@ -42,3 +42,12 @@ export const adminAuditEvents = pgTable.withRLS("admin_audit_events", {
   check("admin_audit_events_outcome_check", sql`${table.outcome} IN ('success','denied','conflict')`),
   check("admin_audit_events_reason_check", sql`length(${table.reason}) BETWEEN 5 AND 500`),
 ]);
+
+export const gatewayRateWindows = pgTable.withRLS("gateway_rate_windows", {
+  authUserId: uuid("auth_user_id").notNull().references(() => users.authUserId, { onDelete: "cascade" }),
+  minute: timestamp("minute", { withTimezone: true }).notNull(),
+  hits: integer("hits").notNull(),
+}, table => [primaryKey({ columns: [table.authUserId, table.minute] }),
+  check("gateway_rate_windows_hits_check", sql`${table.hits} BETWEEN 1 AND 60`),
+  index("gateway_rate_windows_expiry").on(table.minute),
+]);

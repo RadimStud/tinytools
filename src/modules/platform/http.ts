@@ -8,7 +8,13 @@ export async function platformResponse(operation: (requestId: string) => Promise
     return Response.json({ data: await operation(requestId), request_id: requestId }, { headers });
   } catch (error) {
     const known = error instanceof PlatformError;
-    if (!known) console.error("Platform operation failed", { request_id: requestId });
+    if (!known) {
+      const candidate = error && typeof error === "object" && "code" in error ? error.code : null;
+      const category = typeof candidate === "string" && /^(?:[0-9A-Z]{5}|ERR_[A-Z_]{1,60})$/.test(candidate)
+        ? candidate : error instanceof TypeError ? "TYPE_ERROR" : "UNKNOWN";
+      console.error("Platform operation failed", { request_id: requestId });
+      console.error("Platform failure category: " + category);
+    }
     return Response.json({ error: { code: known ? error.code : "platform_unavailable" }, request_id: requestId }, {
       status: known ? error.status : 503, headers,
     });

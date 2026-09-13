@@ -1,0 +1,15 @@
+import { platformResponse } from "@/modules/platform/http";
+import { orionGateway } from "@/server/orion-gateway";
+import { PlatformError } from "@/modules/platform/domain/platform";
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 15;
+const handle = (request: Request) => platformResponse(async id => (await orionGateway()).handle(request, id));
+export const GET = handle;
+export const POST = handle;
+const unsupported = () => platformResponse(async () => { throw new PlatformError(405, "operation_not_supported"); });
+export const HEAD = unsupported;
+export const OPTIONS = unsupported;
+export const PUT = unsupported;
+export const PATCH = unsupported;
+export const DELETE = unsupported;

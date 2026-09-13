@@ -20,8 +20,11 @@ export class AuthService {
       UserRepository,
   ) {}
 
-  async getAuthenticatedUser():
-    Promise<User | null> {
+  async getAuthenticatedUser(): Promise<User | null> {
+    return (await this.getAuthenticatedSession())?.user ?? null;
+  }
+
+  async getAuthenticatedSession(): Promise<{ user: User; sessionId: string | null } | null> {
     const supabase =
       await createSupabaseServerClient();
 
@@ -51,7 +54,16 @@ export class AuthService {
       return null;
     }
 
-    return data.user;
+    if (data.user.id !== claimsData.claims.sub) return null;
+    const sessionId = typeof claimsData.claims.session_id === "string" ? claimsData.claims.session_id : null;
+    if (process.env.MINIKIT_PLATFORM_ENABLED === "1") {
+      if (!sessionId || !/^[0-9a-f-]{36}$/i.test(sessionId)) return null;
+      const [{ sql }, { isLiveSession }] = await Promise.all([
+        import("@/infrastructure/db/client"), import("./live-session"),
+      ]);
+      if (!await isLiveSession(sql, data.user.id, sessionId)) return null;
+    }
+    return { user: data.user, sessionId };
   }
 
   async syncCurrentUser():
