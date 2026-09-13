@@ -55,7 +55,9 @@ services:
       timeout: 3s
       retries: 60
   storage:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    build:
+      context: .
+      dockerfile: Minio.Dockerfile
     command: [server, /data]
     ports: ["127.0.0.1:54327:9000"]
     environment:
