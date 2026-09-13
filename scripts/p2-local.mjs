@@ -57,10 +57,11 @@ if (action === "prepare") {
   const target = new URL(env.DATABASE_URL);
   if (target.hostname !== "127.0.0.1" || target.port !== "54329" || target.pathname !== "/minikit_platform_e2e") throw new Error("Not the isolated database.");
   if (action === "seed") {
-    await child("node_modules/drizzle-kit/bin.cjs", ["push", "--force"], env);
+    const tables = ["superuser_permissions", "tool_platforms", "tool_requests", "tool_versions", "tools", "users", "vault_files", "admin_audit_events", "app_access", "gateway_rate_windows", "platform_admins", "platform_apps"];
+    const hints = JSON.stringify(tables.map(name => ({ type: "create", kind: "table", entity: ["public", name] })));
+    await child("node_modules/drizzle-kit/bin.cjs", ["push", "--force", "--hints", hints], env);
     const sql = postgres(env.DATABASE_URL, { max: 1, prepare: false });
     try {
-      // Schema is generated from the actual production models; do not use the reduced P1 fixture.
       await sql.begin(async tx => {
         for (const file of ["0001_explicit_current_release.sql", "0004_platform_accounts.sql", "0005_gateway_rate_windows.sql"]) {
           await tx.unsafe(await fs.readFile(path.join("drizzle", file), "utf8"));
