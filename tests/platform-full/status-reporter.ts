@@ -5,10 +5,8 @@ import type { FullResult, Reporter, TestCase, TestResult } from "@playwright/tes
 export default class StatusReporter implements Reporter {
   private rows: { title: string; status: string; duration_ms: number }[] = [];
   onStdErr(chunk: string | Buffer) {
-    const text = String(chunk);
-    // Only explicit fixture diagnostics contain no URLs, bodies or credentials.
-    const code = text.match(/Local Auth (?:ingress failure(?:\s+\d{3}(?:\s+[a-z0-9_]+)?)?|transport failure)/i);
-    if (code) console.log(code[0]);
+    const codes = String(chunk).match(/P2_AUTH_(?:STATUS_\d{3}_[A-Za-z0-9_]+|TRANSPORT_FAILURE)/g);
+    if (codes) for (const code of codes) console.log(code);
   }
   onTestEnd(test: TestCase, result: TestResult) {
     this.rows.push({ title: test.title, status: result.status, duration_ms: result.duration });

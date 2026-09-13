@@ -17,15 +17,13 @@ const proxy = createServer(async (req, res) => {
     });
     const result = Buffer.from(await out.arrayBuffer());
     if (!out.ok && out.status >= 400) {
-      try {
-        const payload = JSON.parse(result.toString("utf8"));
-        const code = String(payload.error_code ?? payload.code ?? "unknown");
-        console.error("Local Auth ingress failure", out.status, /^[a-z0-9_]{1,80}$/i.test(code) ? code : "unknown");
-      } catch { console.error("Local Auth ingress failure", out.status); }
+      let code = "unknown";
+      try { const payload = JSON.parse(result.toString("utf8")); const raw = String(payload.error_code ?? payload.code ?? "unknown"); if (/^[a-z0-9_]{1,80}$/i.test(raw)) code = raw; } catch { /* Do not log upstream bodies. */ }
+      console.error("P2_AUTH_STATUS_" + out.status + "_" + code);
     }
     for (const name of ["content-type", "location", "cache-control"]) { const v = out.headers.get(name); if (v) res.setHeader(name, v); }
     res.writeHead(out.status); res.end(result);
-  } catch { console.error("Local Auth transport failure"); res.writeHead(503); res.end(); }
+  } catch { console.error("P2_AUTH_TRANSPORT_FAILURE"); res.writeHead(503); res.end(); }
 });
 proxy.listen(54321, "127.0.0.1");
 const children = [
