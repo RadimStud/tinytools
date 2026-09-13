@@ -1,13 +1,15 @@
 import fs from "node:fs";
+import postgres from "postgres";
 import type { FullResult, Reporter, TestCase, TestResult } from "@playwright/test/reporter";
 
-/** Do not serialize test steps, arguments, traces, cookies or verification links. */
+/** Only counts, fixed route names and status codes leave this disposable environment. */
 export default class StatusReporter implements Reporter {
   private rows: { title: string; status: string; duration_ms: number }[] = [];
   private diagnostics: string[] = [];
   onStdErr(chunk: string | Buffer) {
-    const codes = String(chunk).match(/P2_AUTH_(?:STATUS_\d{3}_[A-Za-z0-9_]+|TRANSPORT_FAILURE)/g);
-    if (codes) for (const code of codes) { this.diagnostics.push(code); console.log(code); }
+    const codes = String(chunk).match(/P2_AUTH_(?:STATUS_\d{3}_[A-Za-z0-9_]+|TRACE_[a-z_]+_\d{3}_[A-Z]+|TRANSPORT_FAILURE)/g);
+    if (codes) for (const code of codes) this.diagnostics.push(code);
+    if (String(chunk).includes("Authentication callback failed.")) this.diagnostics.push("Callback threw a redacted error");
   }
   onTestEnd(test: TestCase, result: TestResult) {
     this.rows.push({ title: test.title, status: result.status, duration_ms: result.duration });
@@ -15,20 +17,35 @@ export default class StatusReporter implements Reporter {
     if (result.status !== "passed" && result.status !== "skipped") {
       for (const error of result.errors) {
         if (error.location) this.diagnostics.push(`Failure location: ${error.location.file.split("/").slice(-2).join("/")}:${error.location.line}`);
-        // Only report fixed page names; never persist the query, fragment or arbitrary path.
-        const urls = String(error.message ?? "").match(/https?:\/\/[^\s"'<>]+/g) ?? [];
+        const urls = String(error.message ?? "").replaceAll(String.fromCharCode(27), " ").match(/https?:\/\/[^\s"'<>]+/g) ?? [];
         for (const value of urls) {
           try {
-            const path = new URL(value).pathname;
-            if (["/apps", "/login", "/signup", "/auth/callback", "/auth/complete", "/account/password", "/auth/v1/verify"].includes(path)) {
-              this.diagnostics.push("Observed assertion page: " + path);
+            const u = new URL(value);
+            if (["/apps", "/login", "/signup", "/auth/callback", "/auth/complete", "/account/password", "/auth/v1/verify"].includes(u.pathname)) {
+              this.diagnostics.push("Observed assertion page: " + u.pathname);
+              if (u.pathname === "/login") {
+                const e = u.searchParams.get("error");
+                this.diagnostics.push(e === "Missing authentication code" ? "Callback code missing" : e?.startsWith("Authentication could not") ? "Callback rejected session" : u.searchParams.has("next") ? "Private-page session rejected" : "Login without recognized error");
+              }
             }
           } catch { /* Never print the original error. */ }
         }
       }
     }
   }
-  onEnd(result: FullResult) {
+  async onEnd(result: FullResult) {
+    if (result.status !== "passed") {
+      const config = JSON.parse(fs.readFileSync(".p2-local/test.json", "utf8"));
+      const url = new URL(config.DATABASE_URL);
+      if (url.hostname === "127.0.0.1" && url.port === "54329" && url.pathname === "/minikit_platform_e2e") {
+        const sql = postgres(url.toString(), { max: 1, connect_timeout: 5 });
+        try {
+          const counts = await sql`SELECT (SELECT count(*)::int FROM auth.users) AS registered, (SELECT count(*)::int FROM auth.users WHERE email_confirmed_at IS NOT NULL) AS confirmed, (SELECT count(*)::int FROM auth.sessions) AS sessions, (SELECT count(*)::int FROM public.users) AS mapped`;
+          this.diagnostics.push("Disposable provider counts: " + JSON.stringify(counts[0]));
+        } catch { this.diagnostics.push("Disposable counts unavailable"); }
+        finally { await sql.end(); }
+      }
+    }
     fs.mkdirSync("playwright-report/platform-full", { recursive: true });
     const counts = Object.fromEntries(["passed", "failed", "skipped", "timedOut", "interrupted"].map(s => [s, this.rows.filter(r => r.status === s).length]));
     fs.writeFileSync("playwright-report/platform-full/results.json", JSON.stringify({ status: result.status, counts, tests: this.rows, diagnostics: this.diagnostics }, null, 2));

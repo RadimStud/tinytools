@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 
 if (process.env.MINIKIT_DEPLOYMENT_ENV !== "isolated-test" || process.env.NEXT_PUBLIC_SUPABASE_URL !== "http://127.0.0.1:54321") throw new Error("Isolated test adapter only.");
-// Local provider ingress translates the Supabase /auth/v1 prefix. It does not authenticate or mint sessions.
+// Local ingress only rewrites /auth/v1; the real provider performs authentication.
 const proxy = createServer(async (req, res) => {
   if (!req.url?.startsWith("/auth/v1/")) { res.writeHead(404); res.end(); return; }
   try {
@@ -16,9 +16,16 @@ const proxy = createServer(async (req, res) => {
       method: req.method, headers: h, body: buffers.length ? Buffer.concat(buffers) : undefined, redirect: "manual", signal: AbortSignal.timeout(8000),
     });
     const result = Buffer.from(await out.arrayBuffer());
+    const endpoint = new URL(req.url, "http://127.0.0.1").pathname.split("/").pop() ?? "";
+    if (["signup", "verify", "token", "user", "recover", "logout"].includes(endpoint)) {
+      let kind = "NONE";
+      const location = out.headers.get("location");
+      if (location) { const u = new URL(location); kind = u.searchParams.has("code") ? "CODE" : u.hash ? "FRAGMENT" : "OTHER"; }
+      console.error("P2_AUTH_TRACE_" + endpoint + "_" + out.status + "_" + kind);
+    }
     if (!out.ok && out.status >= 400) {
       let code = "unknown";
-      try { const payload = JSON.parse(result.toString("utf8")); const raw = String(payload.error_code ?? payload.code ?? "unknown"); if (/^[a-z0-9_]{1,80}$/i.test(raw)) code = raw; } catch { /* Do not log upstream bodies. */ }
+      try { const payload = JSON.parse(result.toString("utf8")); const raw = String(payload.error_code ?? payload.code ?? "unknown"); if (/^[a-z0-9_]{1,80}$/i.test(raw)) code = raw; } catch { /* Never log upstream bodies. */ }
       console.error("P2_AUTH_STATUS_" + out.status + "_" + code);
     }
     for (const name of ["content-type", "location", "cache-control"]) { const v = out.headers.get(name); if (v) res.setHeader(name, v); }
