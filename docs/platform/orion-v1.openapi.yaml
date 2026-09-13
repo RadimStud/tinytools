@@ -1,0 +1,395 @@
+openapi: 3.1.0
+info:
+  title: MiniKit ORION contract-test integration
+  version: 1.0.0
+  description: >-
+    Implemented P2 contract minikit.orion/1.0. This is NOT a production ORION
+    deployment. Only contract.echo is executable; paid operations, uploads,
+    budget reservations and account deletion are disabled or unimplemented.
+    Browser cookies authenticate gateway calls; the internal authorize endpoint
+    instead requires a dedicated machine credential and rejects Cookie/Origin.
+servers:
+  - url: http://127.0.0.1:3100
+    description: Disposable local test portal; no verified public staging hostname.
+security:
+  - SupabaseCookieSession: []
+paths:
+  /api/platform/v1/me:
+    get:
+      operationId: currentAccount
+      responses:
+        '200':
+          description: Verified Auth UUID and platform permissions, private/no-store.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, request_id]
+                properties:
+                  request_id: {$ref: '#/components/schemas/UUID'}
+                  data:
+                    type: object
+                    required: [subject, display_name, platform_permissions]
+                    properties:
+                      subject: {$ref: '#/components/schemas/UUID'}
+                      display_name: {type: string}
+                      platform_permissions: {type: array, items: {type: string, enum: [platform.admin]}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/platform/v1/apps:
+    get:
+      operationId: ownApplications
+      responses:
+        '200':
+          description: Own informational catalog, not operation authorization.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, request_id]
+                properties:
+                  request_id: {$ref: '#/components/schemas/UUID'}
+                  data: {type: array, items: {$ref: '#/components/schemas/AppView'}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/platform/v1/apps/{appId}/access:
+    parameters:
+      - {name: appId, in: path, required: true, schema: {type: string}}
+    get:
+      operationId: ownApplicationAccess
+      responses:
+        '200':
+          description: Own AppView. Identity is returned by /me, not repeated here.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, request_id]
+                properties:
+                  request_id: {$ref: '#/components/schemas/UUID'}
+                  data: {$ref: '#/components/schemas/AppView'}
+        default: {$ref: '#/components/responses/Error'}
+  /api/platform/v1/admin/access:
+    put:
+      operationId: changeApplicationAccess
+      description: Platform administrator only. Does not grant platform admin or Superuser permission. JSON cap 8192 bytes.
+      parameters:
+        - {$ref: '#/components/parameters/Origin'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [subject, app_id, status, app_role, expected_policy_version, reason]
+              properties:
+                subject: {$ref: '#/components/schemas/UUID'}
+                app_id: {type: string, pattern: '^[a-z][a-z0-9-]{0,47}$'}
+                status: {type: string, enum: [enabled, suspended, revoked]}
+                app_role: {type: string, enum: [user, app_admin]}
+                expected_policy_version: {type: integer, minimum: 0, maximum: 2147483646}
+                reason: {type: string, minLength: 5, maxLength: 500}
+      responses:
+        '200':
+          description: Atomic grant update and audit commit.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, request_id]
+                properties:
+                  request_id: {$ref: '#/components/schemas/UUID'}
+                  data: {$ref: '#/components/schemas/Grant'}
+        default: {$ref: '#/components/responses/Error'}
+  /api/platform/v1/jwks:
+    get:
+      operationId: verificationKeys
+      security: []
+      description: Public EC P-256 keys only. Cache max-age 30 seconds. No private key material.
+      responses:
+        '200':
+          description: Raw JWKS, deliberately not wrapped in data/request_id.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/JWKS'}
+        default: {$ref: '#/components/responses/Error'}
+  /api/apps/orion/v1/context:
+    get:
+      operationId: applicationContext
+      description: Maps only to GET /v1/context on the fixed configured service origin. No query parameters.
+      responses:
+        '200':
+          description: Signature-verified service context for the requesting account.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, request_id]
+                properties:
+                  request_id: {$ref: '#/components/schemas/UUID'}
+                  data: {$ref: '#/components/schemas/Context'}
+        default: {$ref: '#/components/responses/Error'}
+  /api/apps/orion/v1/jobs:
+    post:
+      operationId: createContractJob
+      description: >-
+        Maps only to POST /v1/jobs. JSON cap 32768 actual UTF-8 bytes; response cap
+        65536 bytes. New identity token on each attempt; stable Idempotency-Key
+        identifies a create retry. Only the harmless contract.echo operation exists.
+      parameters:
+        - {$ref: '#/components/parameters/Origin'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [operation, input]
+              properties:
+                operation: {type: string, const: contract.echo}
+                input:
+                  type: object
+                  additionalProperties: false
+                  required: [text]
+                  properties:
+                    text: {type: string, maxLength: 4096}
+      responses:
+        '200': {$ref: '#/components/responses/Job'}
+        default: {$ref: '#/components/responses/Error'}
+  /api/apps/orion/v1/jobs/{jobId}:
+    parameters:
+      - {$ref: '#/components/parameters/JobId'}
+    get:
+      operationId: ownContractJob
+      description: Maps only to GET /v1/jobs/{jobId}; another account's job is 404.
+      responses:
+        '200': {$ref: '#/components/responses/Job'}
+        default: {$ref: '#/components/responses/Error'}
+  /api/apps/orion/v1/jobs/{jobId}/run:
+    parameters:
+      - {$ref: '#/components/parameters/JobId'}
+    post:
+      operationId: runOwnContractJob
+      description: >-
+        Maps only to POST /v1/jobs/{jobId}/run. Explicitly runs a diagnostic job;
+        not a production background queue. Service rechecks live authorization
+        before execution. This endpoint cannot execute real AI operations.
+      parameters:
+        - {$ref: '#/components/parameters/Origin'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: false, maxProperties: 0}
+      responses:
+        '200': {$ref: '#/components/responses/Job'}
+        default: {$ref: '#/components/responses/Error'}
+  /api/platform/v1/internal/orion/authorize:
+    post:
+      operationId: authorizeServiceExecution
+      security:
+        - OrionMachineCredential: []
+      description: >-
+        Not a browser API and not a token issuance endpoint. Requires the dedicated
+        ORION_SERVICE_CREDENTIAL, not a Supabase or gateway JWT. Cookie and Origin
+        headers are rejected. The trusted service supplies previously verified job
+        ownership; no browser-supplied subject is authoritative. Body cap 8192 bytes.
+        Exact Content-Type application/json. Checks live session, user ban/deletion,
+        enabled app_access and matching policy version. Does not reserve money.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [subject, session_id, policy_version, operation_id, operation]
+              properties:
+                subject: {$ref: '#/components/schemas/UUID'}
+                session_id: {$ref: '#/components/schemas/UUID'}
+                policy_version: {type: integer, minimum: 1}
+                operation_id: {$ref: '#/components/schemas/UUID'}
+                operation: {type: string, const: contract.echo}
+      responses:
+        '200':
+          description: Current authorization for this diagnostic execution; not a durable permit.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, request_id]
+                properties:
+                  request_id: {$ref: '#/components/schemas/UUID'}
+                  data:
+                    type: object
+                    required: [subject, operation_id, app_id, policy_version, permissions, contract_version, allowed, paid_operations_enabled, limits]
+                    properties:
+                      subject: {$ref: '#/components/schemas/UUID'}
+                      operation_id: {$ref: '#/components/schemas/UUID'}
+                      app_id: {type: string, const: orion}
+                      policy_version: {type: integer, minimum: 1}
+                      permissions: {type: array, items: {type: string, const: orion.use}, minItems: 1, maxItems: 1}
+                      contract_version: {type: string, const: minikit.orion/1.0}
+                      allowed: {type: boolean, const: true}
+                      paid_operations_enabled: {type: boolean, const: false}
+                      limits: {type: 'null'}
+        default: {$ref: '#/components/responses/Error'}
+components:
+  securitySchemes:
+    SupabaseCookieSession:
+      type: apiKey
+      in: cookie
+      name: sb-<project-ref>-auth-token
+      description: Logical name only; Supabase SSR may chunk the cookie. Use platform login, never construct it manually.
+    OrionMachineCredential:
+      type: http
+      scheme: bearer
+      description: Dedicated opaque server-to-server credential; never distribute to a browser.
+  parameters:
+    Origin: {name: Origin, in: header, required: true, schema: {type: string}, description: Must exactly equal configured platform origin. Sec-Fetch-Site, when present, must be same-origin.}
+    IdempotencyKey: {name: Idempotency-Key, in: header, required: true, schema: {$ref: '#/components/schemas/UUID'}}
+    JobId: {name: jobId, in: path, required: true, schema: {$ref: '#/components/schemas/UUID'}}
+  responses:
+    Error:
+      description: >-
+        400 invalid_request/idempotency_key_required; 401 unauthenticated or
+        invalid_service_credential; 403 access_denied/origin_rejected;
+        404 operation_not_supported/job_not_found/app_not_found/user_not_found;
+        405 operation_not_supported; 409 policy_conflict/operation_conflict/free_policy_not_editable;
+        413 payload_too_large; 415 json_required; 429 rate_limited;
+        502 invalid_app_response; 503 app_unavailable/gateway_not_configured/
+        platform_disabled/platform_unavailable/paid_operations_disabled;
+        504 app_timeout. Private/no-store. Internal error bodies are never relayed.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error, request_id]
+            properties:
+              request_id: {$ref: '#/components/schemas/UUID'}
+              error:
+                type: object
+                required: [code]
+                properties:
+                  code: {type: string}
+    Job:
+      description: An account-owned diagnostic job. Private/no-store. No service credentials in the result.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data, request_id]
+            properties:
+              request_id: {$ref: '#/components/schemas/UUID'}
+              data: {$ref: '#/components/schemas/Job'}
+  schemas:
+    UUID: {type: string, format: uuid}
+    Context:
+      type: object
+      additionalProperties: false
+      required: [app_id, subject, policy_version, permissions, mode, paid_operations_enabled, limits]
+      properties:
+        app_id: {type: string, const: orion}
+        subject: {$ref: '#/components/schemas/UUID'}
+        policy_version: {type: integer, minimum: 1}
+        permissions: {type: array, items: {type: string, const: orion.use}, minItems: 1, maxItems: 1}
+        mode: {type: string, const: contract-test}
+        paid_operations_enabled: {type: boolean, const: false}
+        limits: {type: 'null'}
+    Job:
+      type: object
+      additionalProperties: false
+      required: [id, subject, state, operation, output, policy_version]
+      properties:
+        id: {$ref: '#/components/schemas/UUID'}
+        subject: {$ref: '#/components/schemas/UUID'}
+        state: {type: string, enum: [queued, completed]}
+        operation: {type: string, const: contract.echo}
+        output:
+          oneOf:
+            - {type: 'null'}
+            - type: object
+              additionalProperties: false
+              required: [text]
+              properties:
+                text: {type: string, maxLength: 4096}
+        policy_version: {type: integer, minimum: 1}
+    Grant:
+      type: object
+      required: [auth_user_id, app_id, status, app_role, policy_version]
+      properties:
+        auth_user_id: {$ref: '#/components/schemas/UUID'}
+        app_id: {type: string}
+        status: {type: string, enum: [enabled, suspended, revoked]}
+        app_role: {type: string, enum: [user, app_admin]}
+        policy_version: {type: integer, minimum: 1}
+    AppView:
+      type: object
+      required: [app_id, name, description, state, internal_path, access_mode, contract_version, access, display_state, permissions, policy_version, launch_path, limits, paid_operations_enabled]
+      properties:
+        app_id: {type: string}
+        name: {type: string}
+        description: {type: string}
+        state: {type: string, enum: [available, coming_soon, unavailable]}
+        internal_path: {type: [string, 'null']}
+        access_mode: {type: string, enum: [explicit, public_free, authenticated_free]}
+        contract_version: {type: string}
+        access: {type: string, enum: [enabled, suspended, revoked, none, free]}
+        display_state: {type: string, enum: [available, no_access, coming_soon, unavailable]}
+        permissions: {type: array, items: {type: string}}
+        policy_version: {type: integer, minimum: 0}
+        launch_path: {type: [string, 'null'], description: Always null for ORION in this delivery.}
+        limits: {type: 'null'}
+        paid_operations_enabled: {type: boolean, const: false}
+    JWKS:
+      type: object
+      additionalProperties: false
+      required: [keys]
+      properties:
+        keys:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            type: object
+            additionalProperties: false
+            required: [kty, crv, x, y, kid, alg, use]
+            properties:
+              kty: {type: string, const: EC}
+              crv: {type: string, const: P-256}
+              x: {type: string}
+              y: {type: string}
+              kid: {type: string, pattern: '^[A-Za-z0-9_-]{1,64}$'}
+              alg: {type: string, const: ES256}
+              use: {type: string, const: sig}
+    ServiceAssertion:
+      description: >-
+        Strict claims of the internal compact JWT. Header allows ONLY alg=ES256,
+        typ=minikit-service+jwt, kid. exp-iat must equal 45 seconds; 3-second clock
+        tolerance; reject at iat+48 seconds. htu is the service-relative route,
+        not the browser gateway prefix. body_sha256 hashes the exact forwarded
+        UTF-8 body (empty string for GET). sid is verified Supabase session UUID.
+        These tokens are never browser credentials. jti needs an atomic shared
+        replay store; it does not implement financial idempotency.
+      type: object
+      additionalProperties: false
+      required: [iss, aud, sub, sid, iat, exp, jti, request_id, app_id, permissions, policy_version, v, htm, htu, body_sha256, idempotency_key]
+      properties:
+        iss: {type: string}
+        aud: {type: string, const: orion}
+        sub: {$ref: '#/components/schemas/UUID'}
+        sid: {$ref: '#/components/schemas/UUID'}
+        iat: {type: integer}
+        exp: {type: integer}
+        jti: {$ref: '#/components/schemas/UUID'}
+        request_id: {$ref: '#/components/schemas/UUID'}
+        app_id: {type: string, const: orion}
+        permissions: {type: array, items: {type: string, const: orion.use}, minItems: 1, maxItems: 1}
+        policy_version: {type: integer, minimum: 1}
+        v: {type: string, const: minikit.orion/1.0}
+        htm: {type: string, enum: [GET, POST]}
+        htu: {type: string, pattern: '^/v1/'}
+        body_sha256: {type: string, pattern: '^[a-f0-9]{64}$'}
+        idempotency_key: {type: [string, 'null'], format: uuid}
