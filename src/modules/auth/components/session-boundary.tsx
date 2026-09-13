@@ -5,7 +5,7 @@ import { SESSION_CHANNEL, SESSION_DOM_EVENT, SESSION_STORAGE_EVENT, sessionPhase
 
 /** Display isolation is supplementary to server authorization, never a substitute for it. */
 export function SessionBoundary({ subject, children }: { subject: string; children: ReactNode }) {
-  const [status, setStatus] = useState<"checking" | "ready" | "unavailable">("checking");
+  const [status, setStatus] = useState<"checking" | "ready" | "submitting" | "unavailable">("checking");
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let alive = true;
@@ -23,9 +23,9 @@ export function SessionBoundary({ subject, children }: { subject: string; childr
     };
     const invalidate = (phase: SessionPhase, submittingHere = false) => {
       generation++; controller?.abort(); hide(); waitingForChange = true;
-      // A submitting form must remain mounted until React starts its server action.
-      // Its contents are hidden synchronously; the completion performs a full navigation.
-      if (!submittingHere) setStatus("unavailable");
+      // Preserve the submitting form until React dispatches its server action.
+      // Its contents stay hidden, with a recovery control if the action fails.
+      setStatus(submittingHere ? "submitting" : "unavailable");
       window.dispatchEvent(new Event("minikit:private-state-invalidated"));
       if (phase === "committed") navigate();
     };
@@ -82,9 +82,11 @@ export function SessionBoundary({ subject, children }: { subject: string; childr
   }, [subject]);
   return <>
     {status !== "ready" && <section aria-label="Session verification" className="min-h-screen bg-neutral-950 px-6 py-12 text-neutral-100">
-      <p role="status">{status === "checking" ? "Checking your session…" : "Your session changed or could not be verified. Private content has been cleared."}</p>
-      {status === "unavailable" && <button className="mt-5 rounded-lg border border-neutral-600 px-4 py-3" onClick={() => location.reload()}>Reload securely</button>}
+      <p role="status">{status === "checking" ? "Checking your session…" : status === "submitting"
+        ? "Updating your session. Private content is hidden until this completes."
+        : "Your session changed or could not be verified. Private content has been cleared."}</p>
+      {(status === "unavailable" || status === "submitting") && <button className="mt-5 rounded-lg border border-neutral-600 px-4 py-3" onClick={() => location.reload()}>Reload securely</button>}
     </section>}
-    <div ref={panel} hidden={status !== "ready"}>{status === "ready" ? children : null}</div>
+    <div ref={panel} hidden={status !== "ready"}>{status === "ready" || status === "submitting" ? children : null}</div>
   </>;
 }

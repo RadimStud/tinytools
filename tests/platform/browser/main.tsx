@@ -1,12 +1,17 @@
 // Test-only harness. Not an application route or authentication bypass.
-// The browser tests intercept /api/auth/session; no Supabase/DB/R2/AI is contacted.
+// Browser tests intercept all fixture identity/action requests; no provider or AI calls.
 import { createRoot } from "react-dom/client";
 import { useState } from "react";
 import { SessionBoundary } from "../../../src/modules/auth/components/session-boundary";
+import { AuthChangeForm } from "../../../src/modules/auth/components/auth-change-form";
 import { announceSessionChange } from "../../../src/modules/auth/components/session-events";
 function Workspace() {
   const [draft, setDraft] = useState("Synthetic private draft A");
-  return <section><h1>Private A workspace</h1><label>Private draft<textarea value={draft} onChange={event => setDraft(event.target.value)} /></label></section>;
+  return <section><h1>Private A workspace</h1><label>Private draft<textarea value={draft} onChange={event => setDraft(event.target.value)} /></label>
+    <AuthChangeForm action={async () => { await fetch("/fixture/action", { method: "POST" }); }}>
+      <button type="submit">Change session locally</button>
+    </AuthChangeForm>
+  </section>;
 }
 function Fixture() {
   if (location.pathname.startsWith("/login")) return <main><h1>Sign in fixture</h1><p>No private workspace is mounted.</p></main>;
