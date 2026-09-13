@@ -28,16 +28,13 @@ export class PostgresPlatformRepository implements PlatformRepository {
   }
   async changeAccess(actor: string, change: AccessChange, requestId: string): Promise<AppAccess> {
     const result = await this.sql.begin(async tx => {
-      // Recheck the persisted platform grant inside the write transaction, not only in UI/service.
       const admins = await tx`SELECT auth_user_id FROM public.platform_admins WHERE auth_user_id = ${actor} FOR SHARE`;
       if (admins.length !== 1) throw new PlatformError(403, "access_denied");
       const apps = await tx`SELECT access_mode FROM public.platform_apps WHERE app_id = ${change.app_id} FOR SHARE`;
       if (!apps.length) throw new PlatformError(404, "app_not_found");
-      // P1 does not change the free Market/CSV policy or their existing route authorization.
       if (apps[0].access_mode !== "explicit") throw new PlatformError(409, "free_policy_not_editable");
       const users = await tx`SELECT auth_user_id FROM public.users WHERE auth_user_id = ${change.subject} FOR SHARE`;
       if (users.length !== 1) throw new PlatformError(404, "user_not_found");
-      // Serialize even the first INSERT for this user/app. Hash collisions only serialize extra work.
       await tx`SELECT pg_advisory_xact_lock(hashtext(${change.subject}), hashtext(${change.app_id}))`;
       const existing = await tx<AppAccess[]>`
         SELECT auth_user_id, app_id, status, app_role, policy_version FROM public.app_access
@@ -60,11 +57,15 @@ export class PostgresPlatformRepository implements PlatformRepository {
         RETURNING auth_user_id, app_id, status, app_role, policy_version
       `;
       const grant = grants[0];
+      // Drizzle replaces the shared postgres client's JSON serializers with
+      // pass-through functions. Bind explicit TEXT, then cast it to JSONB in SQL:
+      // this works with both ordinary and Drizzle-attached postgres clients and
+      // never puts an unescaped JSON literal into the query text.
       await tx`
         INSERT INTO public.admin_audit_events
           (request_id, actor_auth_user_id, target_auth_user_id, app_id, action, outcome, reason, before_state, after_state)
         VALUES (${requestId}, ${actor}, ${change.subject}, ${change.app_id}, 'access.change', 'success', ${change.reason},
-          ${before ? tx.json(before) : null}, ${tx.json(grant)})
+          ${before ? JSON.stringify(before) : null}::text::jsonb, ${JSON.stringify(grant)}::text::jsonb)
       `;
       return { conflict: false as const, grant };
     });
