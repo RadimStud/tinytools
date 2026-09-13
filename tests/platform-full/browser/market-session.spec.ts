@@ -66,41 +66,48 @@ test("ordinary accounts have neither platform administration nor private vault a
 
 test("real browser Market upload, publication, anonymous download and archive", async ({ browser }, info) => {
   const page = a.page; const name = "Isolated Market " + randomUUID();
-  const bytes = Buffer.from("MiniKit isolated marketplace regression.\n"); let manage = "";
-  try {
-    await page.goto("/dashboard");
-    await page.getByRole("link", { name: "Publish tool", exact: true }).click();
-    await page.getByLabel("Tool name", { exact: true }).fill(name);
-    await page.getByLabel("What does it do?", { exact: true }).fill("Deterministic isolated marketplace regression tool.");
-    await page.getByLabel("Price in EUR").fill("0"); await page.getByLabel("Windows", { exact: true }).check();
-    await page.getByRole("button", { name: "Save draft", exact: true }).click();
-    await expect(page.getByText("Draft created successfully.", { exact: true })).toBeVisible();
-    await page.getByRole("article", { name, exact: true }).getByRole("link", { name: "Manage →" }).click(); manage = page.url();
-    await page.getByLabel("Full description").fill("A deterministic fixture for local storage integration, not a public product.");
-    await page.getByRole("button", { name: "Save changes", exact: true }).click();
-    await expect(page.getByText("Tool updated successfully.", { exact: true })).toBeVisible();
-    await page.getByLabel("New version").fill("1.0.0"); await page.getByRole("button", { name: "Create", exact: true }).click();
-    const version = page.getByRole("article", { name: "Version 1.0.0", exact: true });
-    await version.getByLabel("Choose file").setInputFiles({ name: "regression.txt", mimeType: "text/plain", buffer: bytes });
-    await version.getByRole("button", { name: "Upload binary", exact: true }).click();
-    await expect(version.getByText("Uploaded", { exact: true })).toBeVisible({ timeout: 30000 });
-    await version.getByRole("button", { name: "Set as current release", exact: true }).click();
-    await expect(page.getByText("Current release updated.", { exact: true })).toBeVisible();
-    await page.getByLabel("Release version").selectOption({ label: "1.0.0" });
-    await page.getByRole("button", { name: "Publish tool", exact: true }).click();
-    await expect(page.getByLabel("Status published")).toBeVisible();
-    const publicPath = await page.getByRole("link", { name: "View public page →" }).getAttribute("href");
-    if (!publicPath) throw new Error("Published fixture URL missing.");
-    const anonymous = await browser.newContext({ baseURL: origin }); contexts.push(anonymous);
-    const publicPage = await anonymous.newPage(); await publicPage.goto(publicPath);
-    await expect(publicPage.getByRole("heading", { name, exact: true })).toBeVisible();
-    const pending = publicPage.waitForEvent("download"); await publicPage.getByRole("link", { name: "Download", exact: true }).click();
-    const download = await pending; expect(download.suggestedFilename()).toBe("regression.txt");
-    const file = info.outputPath("regression.txt"); await download.saveAs(file); expect(await fs.readFile(file)).toEqual(bytes);
-    await b.page.goto(manage); await expect(b.page.getByLabel("Full description")).toHaveCount(0);
-  } finally {
-    if (manage) { await page.goto(manage); await page.getByRole("button", { name: "Archive tool", exact: true }).click(); await expect(page.getByLabel("Status archived")).toBeVisible(); }
-  }
+  const bytes = Buffer.from("MiniKit isolated marketplace regression.\n");
+  await page.goto("/dashboard");
+  await page.getByRole("link", { name: "Publish tool", exact: true }).click();
+  await page.getByLabel("Tool name", { exact: true }).fill(name);
+  await page.getByLabel("What does it do?", { exact: true }).fill("Deterministic isolated marketplace regression tool.");
+  await page.getByLabel("Price in EUR").fill("0"); await page.getByLabel("Windows", { exact: true }).check();
+  await page.getByRole("button", { name: "Save draft", exact: true }).click();
+  await expect(page.getByText("Draft created successfully.", { exact: true })).toBeVisible();
+  console.error("P2_CHECK_MARKET_DRAFT");
+  await page.getByRole("article", { name, exact: true }).getByRole("link", { name: "Manage →" }).click(); const manage = page.url();
+  await page.getByLabel("Full description").fill("A deterministic fixture for local storage integration, not a public product.");
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await expect(page.getByText("Tool updated successfully.", { exact: true })).toBeVisible();
+  await page.getByLabel("New version").fill("1.0.0"); await page.getByRole("button", { name: "Create", exact: true }).click();
+  const version = page.getByRole("article", { name: "Version 1.0.0", exact: true });
+  await version.getByLabel("Choose file").setInputFiles({ name: "regression.txt", mimeType: "text/plain", buffer: bytes });
+  await version.getByRole("button", { name: "Upload binary", exact: true }).click();
+  await expect(version.getByText("Uploaded", { exact: true })).toBeVisible({ timeout: 30000 });
+  console.error("P2_CHECK_MARKET_UPLOADED");
+  await version.getByRole("button", { name: "Set as current release", exact: true }).click();
+  await expect(page.getByText("Current release updated.", { exact: true })).toBeVisible();
+  console.error("P2_CHECK_MARKET_RELEASE");
+  await page.getByLabel("Release version").selectOption({ label: "1.0.0" });
+  await page.getByRole("button", { name: "Publish tool", exact: true }).click();
+  await expect(page.getByLabel("Status published")).toBeVisible();
+  console.error("P2_CHECK_MARKET_PUBLISHED");
+  const publicPath = await page.getByRole("link", { name: "View public page →" }).getAttribute("href");
+  if (!publicPath) throw new Error("Published fixture URL missing.");
+  const anonymous = await browser.newContext({ baseURL: origin }); contexts.push(anonymous);
+  const publicPage = await anonymous.newPage(); await publicPage.goto(publicPath);
+  await expect(publicPage.getByRole("heading", { name, exact: true })).toBeVisible();
+  const pending = publicPage.waitForEvent("download", { timeout: 15000 });
+  await publicPage.getByRole("link", { name: "Download", exact: true }).click();
+  const download = await pending; expect(download.suggestedFilename()).toBe("regression.txt");
+  const file = info.outputPath("regression.txt"); await download.saveAs(file); expect(await fs.readFile(file)).toEqual(bytes);
+  console.error("P2_CHECK_MARKET_DOWNLOADED");
+  await b.page.goto(manage); await expect(b.page.getByLabel("Full description")).toHaveCount(0);
+  await page.goto(manage); await page.getByRole("button", { name: "Archive tool", exact: true }).click();
+  await expect(page.getByLabel("Status archived")).toBeVisible();
+  // A failed assertion must remain visible rather than being masked by a failing
+  // cleanup click. All database and object data are discarded with this isolated
+  // Compose project; this suite cannot run against production.
 });
 
 test("real logout clears another tab and the next login belongs only to B", async () => {
