@@ -1,0 +1,64 @@
+# Disposable local provider test environment; never deploy these fixtures.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: minikit_platform_e2e
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${P2_DB_PASSWORD:?generate the isolated environment first}
+    ports: ["127.0.0.1:54329:5432"]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d minikit_platform_e2e"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - ./init-auth.sql:/docker-entrypoint-initdb.d/00-auth.sql:ro
+  mailpit:
+    image: axllent/mailpit:v1.27.8
+    ports: ["127.0.0.1:54324:8025"]
+  auth:
+    image: supabase/gotrue:v2.196.0
+    depends_on:
+      postgres: { condition: service_healthy }
+      mailpit: { condition: service_started }
+    ports: ["127.0.0.1:54326:9999"]
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: http://127.0.0.1:54321
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://postgres:${P2_DB_PASSWORD}@postgres:5432/minikit_platform_e2e
+      GOTRUE_DB_NAMESPACE: auth
+      GOTRUE_SITE_URL: http://127.0.0.1:3100
+      GOTRUE_URI_ALLOW_LIST: http://127.0.0.1:3100/**
+      GOTRUE_JWT_SECRET: ${P2_AUTH_SECRET:?generate the isolated environment first}
+      GOTRUE_JWT_ISSUER: http://127.0.0.1:54321/auth/v1
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "false"
+      GOTRUE_SMTP_HOST: mailpit
+      GOTRUE_SMTP_PORT: 1025
+      GOTRUE_SMTP_ADMIN_EMAIL: noreply@minikit.invalid
+      GOTRUE_SMTP_SENDER_NAME: MiniKit isolated tests
+      GOTRUE_SMTP_MAX_FREQUENCY: 1s
+      GOTRUE_RATE_LIMIT_EMAIL_SENT: 1000
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_RECOVERY: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: /auth/v1/verify
+    healthcheck:
+      test: [CMD, wget, --no-verbose, --tries=1, --spider, http://localhost:9999/health]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+  storage:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    command: [server, /data]
+    ports: ["127.0.0.1:54327:9000"]
+    environment:
+      MINIO_ROOT_USER: ${P2_STORAGE_KEY:?generate the isolated environment first}
+      MINIO_ROOT_PASSWORD: ${P2_STORAGE_SECRET:?generate the isolated environment first}
+      MINIO_API_CORS_ALLOW_ORIGIN: http://127.0.0.1:3100
