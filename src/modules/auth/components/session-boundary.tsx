@@ -13,6 +13,7 @@ export function SessionBoundary({ subject, children }: { subject: string; childr
     let controller: AbortController | undefined;
     let navigating = false;
     let waitingForChange = false;
+    const seenEvents = new Set<string>();
     const hide = () => { if (panel.current) panel.current.hidden = true; };
     const navigate = () => {
       if (navigating) return;
@@ -55,11 +56,25 @@ export function SessionBoundary({ subject, children }: { subject: string; childr
         if (alive && current === generation) { hide(); setStatus("unavailable"); }
       } finally { clearTimeout(timeout); }
     };
-    const message = (event: MessageEvent) => { const phase = sessionPhase(event.data); if (phase) invalidate(phase); };
-    const localMessage = (event: Event) => { const phase = sessionPhase((event as CustomEvent).detail); if (phase) invalidate(phase, phase === "pending"); };
+    const consume = (value: unknown, local = false) => {
+      const phase = sessionPhase(value);
+      if (!phase) return;
+      const nonce = (value as { nonce?: unknown }).nonce;
+      // Separate BroadcastChannel instances in the SAME window also communicate.
+      // Process each hint once, preserving the local submitting form's lifetime.
+      if (typeof nonce === "string" && nonce.length <= 80) {
+        const key = `${phase}:${nonce}`;
+        if (seenEvents.has(key)) return;
+        seenEvents.add(key);
+        if (seenEvents.size > 32) seenEvents.delete(seenEvents.values().next().value!);
+      }
+      invalidate(phase, local && phase === "pending");
+    };
+    const message = (event: MessageEvent) => consume(event.data);
+    const localMessage = (event: Event) => consume((event as CustomEvent).detail, true);
     const stored = (event: StorageEvent) => {
       if (event.key !== SESSION_STORAGE_EVENT || !event.newValue) return;
-      try { const phase = sessionPhase(JSON.parse(event.newValue)); if (phase) invalidate(phase); } catch { /* Ignore malformed hints. */ }
+      try { consume(JSON.parse(event.newValue)); } catch { /* Ignore malformed hints. */ }
     };
     const focus = () => { if (document.visibilityState === "visible") void verify(); };
     const pageHide = () => { generation++; controller?.abort(); hide(); };
