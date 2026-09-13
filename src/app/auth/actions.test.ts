@@ -30,7 +30,8 @@ describe("account actions with a mocked auth provider (not live Supabase)", () =
   });
   it("does not copy an upstream auth error into the URL", async () => {
     mocks.signin.mockResolvedValue({ error: { message: "private-token" } });
-    const error = await login(form({})).catch(reason => reason as Error);
+    const error: unknown = await login(form({})).catch(reason => reason);
+    if (!(error instanceof Error)) throw new Error("Expected the redirect to throw");
     expect(error.message).toContain("REDIRECT /login?"); expect(error.message).not.toContain("private-token");
     expect(mocks.sync).not.toHaveBeenCalled();
   });

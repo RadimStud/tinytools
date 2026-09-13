@@ -7,12 +7,12 @@ import { SESSION_CHANNEL, SESSION_DOM_EVENT, SESSION_STORAGE_EVENT, sessionPhase
 export function SessionBoundary({ subject, children }: { subject: string; children: ReactNode }) {
   const [status, setStatus] = useState<"checking" | "ready" | "unavailable">("checking");
   const panel = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     let alive = true;
     let generation = 0;
     let controller: AbortController | undefined;
     let navigating = false;
+    let waitingForChange = false;
     const hide = () => { if (panel.current) panel.current.hidden = true; };
     const navigate = () => {
       if (navigating) return;
@@ -21,16 +21,16 @@ export function SessionBoundary({ subject, children }: { subject: string; childr
       const next = location.pathname + location.search;
       location.replace(`/login?${new URLSearchParams({ next })}`);
     };
-    const invalidate = (phase: SessionPhase) => {
-      generation++;
-      controller?.abort();
-      hide();
-      setStatus("unavailable"); // Unmount private component state immediately on the next render.
+    const invalidate = (phase: SessionPhase, submittingHere = false) => {
+      generation++; controller?.abort(); hide(); waitingForChange = true;
+      // A submitting form must remain mounted until React starts its server action.
+      // Its contents are hidden synchronously; the completion performs a full navigation.
+      if (!submittingHere) setStatus("unavailable");
       window.dispatchEvent(new Event("minikit:private-state-invalidated"));
       if (phase === "committed") navigate();
     };
     const verify = async () => {
-      if (navigating || !alive) return;
+      if (navigating || waitingForChange || !alive) return;
       const current = ++generation;
       controller?.abort();
       const activeController = new AbortController();
@@ -56,7 +56,7 @@ export function SessionBoundary({ subject, children }: { subject: string; childr
       } finally { clearTimeout(timeout); }
     };
     const message = (event: MessageEvent) => { const phase = sessionPhase(event.data); if (phase) invalidate(phase); };
-    const localMessage = (event: Event) => { const phase = sessionPhase((event as CustomEvent).detail); if (phase) invalidate(phase); };
+    const localMessage = (event: Event) => { const phase = sessionPhase((event as CustomEvent).detail); if (phase) invalidate(phase, phase === "pending"); };
     const stored = (event: StorageEvent) => {
       if (event.key !== SESSION_STORAGE_EVENT || !event.newValue) return;
       try { const phase = sessionPhase(JSON.parse(event.newValue)); if (phase) invalidate(phase); } catch { /* Ignore malformed hints. */ }
@@ -67,11 +67,9 @@ export function SessionBoundary({ subject, children }: { subject: string; childr
     const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel(SESSION_CHANNEL) : null;
     channel?.addEventListener("message", message);
     window.addEventListener(SESSION_DOM_EVENT, localMessage);
-    window.addEventListener("storage", stored);
-    window.addEventListener("focus", focus);
+    window.addEventListener("storage", stored); window.addEventListener("focus", focus);
     document.addEventListener("visibilitychange", focus);
-    window.addEventListener("pagehide", pageHide);
-    window.addEventListener("pageshow", pageShow);
+    window.addEventListener("pagehide", pageHide); window.addEventListener("pageshow", pageShow);
     const interval = setInterval(focus, 30_000);
     void verify();
     return () => {
@@ -82,7 +80,6 @@ export function SessionBoundary({ subject, children }: { subject: string; childr
       window.removeEventListener("pagehide", pageHide); window.removeEventListener("pageshow", pageShow);
     };
   }, [subject]);
-
   return <>
     {status !== "ready" && <section aria-label="Session verification" className="min-h-screen bg-neutral-950 px-6 py-12 text-neutral-100">
       <p role="status">{status === "checking" ? "Checking your session…" : "Your session changed or could not be verified. Private content has been cleared."}</p>
