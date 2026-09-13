@@ -66,7 +66,6 @@ test("real signup and delivered confirmation preserve two separate identities", 
   expect(a.subject).not.toBe(b.subject);
   expect((await a.context.request.get(gateway + "/context")).status()).toBe(403);
   expect((await a.context.request.put("/api/platform/v1/admin/access", { headers: { Origin: origin }, data: {} })).status()).toBe(403);
-  // Explicit bootstrap is confined to the empty, disposable test database.
   await sql`INSERT INTO public.platform_admins(auth_user_id,reason) VALUES (${operator.subject},'Disposable local test operator')`;
 });
 
@@ -75,7 +74,14 @@ test("enabled portal administration grants A via the actual UI while B remains d
   const form = operator.page.getByRole("form", { name: "Access to ORION" });
   await form.getByLabel("Access", { exact: true }).selectOption("enabled");
   await form.getByLabel("Reason (no private data)").fill("Disposable integration access for A");
+  const submitted = operator.page.waitForResponse(r => new URL(r.url()).pathname === "/api/platform/v1/admin/access" && r.request().method() === "PUT", { timeout: 15000 });
   await form.getByRole("button", { name: "Save access" }).click();
+  const mutation = await submitted;
+  console.error("P2_CHECK_ADMIN_HTTP_" + mutation.status());
+  const mutationData = await mutation.json();
+  const code = mutationData.error?.code;
+  if (typeof code === "string" && /^[a-z_]{1,60}$/.test(code)) console.error("P2_CHECK_ADMIN_" + code.toUpperCase());
+  expect(mutation.status()).toBe(200);
   await expect(form).toContainText("Current policy version: 1");
   expect((await a.context.request.get(gateway + "/context")).status()).toBe(200);
   expect((await b.context.request.get(gateway + "/context")).status()).toBe(403);
