@@ -13,6 +13,10 @@ test("signed-in account without superuser cannot access the private vault", asyn
   await expect(page).toHaveURL(/\/dashboard/);
   await expect(page.getByRole("heading", { name: "Your tools", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Superuser", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Open ORION", exact: true })).toHaveCount(0);
+
+  await page.goto("/superuser/orion");
+  await expect(page).toHaveURL(/\/dashboard$/);
 
   await page.goto("/superuser");
   await expect(page).toHaveURL(/\/dashboard$/);
