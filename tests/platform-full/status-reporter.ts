@@ -9,15 +9,12 @@ export default class StatusReporter implements Reporter {
   onStdErr(chunk: string | Buffer) {
     const codes = String(chunk).match(/P2_(?:AUTH_(?:STATUS_\d{3}_[A-Za-z0-9_]+|TRACE_[a-z_]+_\d{3}_[A-Z]+|TRANSPORT_FAILURE)|CHECK_[A-Z_0-9]+)/g);
     if (codes) for (const code of codes) this.diagnostics.push(code);
+    const categories = String(chunk).match(/Platform failure category: [0-9A-Z_]+/g);
+    if (categories) this.diagnostics.push(...categories);
     if (String(chunk).includes("Authentication callback failed.")) this.diagnostics.push("Callback threw a redacted error");
   }
   onStepEnd(_test: TestCase, _result: TestResult, step: TestStep) {
-    if (step.error && step.location) {
-      this.diagnostics.push(`Failed step: ${step.category} ${step.location.file.split("/").slice(-2).join("/")}:${step.location.line}`);
-      const matcher = step.error as { matcherResult?: { name?: unknown; actual?: unknown; expected?: unknown } };
-      const m = matcher.matcherResult;
-      if (m && typeof m.actual === "number" && typeof m.expected === "number") this.diagnostics.push(`Numeric assertion: ${m.actual} versus ${m.expected}`);
-    }
+    if (step.error && step.location) this.diagnostics.push(`Failed step: ${step.category} ${step.location.file.split("/").slice(-2).join("/")}:${step.location.line}`);
   }
   onTestEnd(test: TestCase, result: TestResult) {
     this.rows.push({ title: test.title, status: result.status, duration_ms: result.duration });
