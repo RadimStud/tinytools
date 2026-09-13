@@ -3,7 +3,8 @@
 Date: 13 September 2026. Repository: `RadimStud/tinytools`.
 Branch: `fix/orion-integration-readiness`, based on P2 commit
 `cd60fe58dbb228f9fb0af43178f1cad4767337a3` / PR #6.
-Implementation was prepared and locally verified as commit `5bc999d`.
+Validated application/test revision: `c616396b402106468aeabda0420b621e45e9a8ba`.
+Published as [PR #9](https://github.com/RadimStud/tinytools/pull/9), stacked on #6.
 
 The owner asked this thread to proceed while another thread implements the ORION
 side of the previous plan. This change covers MiniKit's integration boundary and
@@ -36,12 +37,14 @@ and services; this work provisions no additional hosting.
 
 | Check | Result | Scope |
 | --- | --- | --- |
-| Unit suite | 249 passed, 26 files | Local Vitest; includes nine added gateway cases. |
+| Unit suite | 249 passed, 26 files | Local Vitest and GitHub CI; includes nine added gateway cases. |
 | Gateway/token subset after final test edits | 58 passed, 2 files | Local Vitest. |
-| ESLint | Passed | Local project. |
-| Next production build including TypeScript | Passed | Generated disposable configuration; no production credentials. |
+| ESLint | Passed | Local project and GitHub CI. |
+| Next production build including TypeScript | Passed | Local and CI disposable configuration; no production credentials. |
 | Patch whitespace | Passed | `git diff --check`. |
-| Full provider/browser suite for these changes | Pending | Requires isolated Docker services and Chromium in the retained P2 workflow. |
+| P1 database and browser checks | 10 database tests and 12 Chromium tests passed | GitHub's isolated PostgreSQL and browser harness. |
+| Workbench browser checks | Passed | GitHub CI. |
+| Full provider/browser suite for these changes | 20 passed, 0 failed, 0 skipped | Actual isolated GoTrue, PostgreSQL, Mailpit, S3-compatible storage and Chromium. |
 | Production deployment or authenticated production test | Not performed | Neither platform activation nor data migration is part of this review. |
 
 The original P2 CI failures inspected were
@@ -49,16 +52,23 @@ The original P2 CI failures inspected were
 and [provider CI 34762134978](https://github.com/RadimStud/tinytools/actions/runs/34762134978).
 The latter reported 19 passed and one failed test. The failing vault assertion
 used a browser session invalidated by the preceding real password recovery.
-Those earlier results do not establish that this revision passes provider CI.
+Both failures are resolved by this revision. The successful runs are:
+
+- [CI: lint, 249 tests and build](https://github.com/RadimStud/tinytools/actions/runs/34781830458).
+- [P1: database and browser checks](https://github.com/RadimStud/tinytools/actions/runs/34781830446).
+- [Workbench browser checks](https://github.com/RadimStud/tinytools/actions/runs/34781830462).
+- [P2: 20 provider integration tests](https://github.com/RadimStud/tinytools/actions/runs/34781830484).
+
+The logs were inspected. Later changes to this report and the handoff only
+document those results; the tested application code is unchanged.
 
 A standalone `tsc --noEmit` before Next type generation reported missing
 `LayoutProps`. The complete Next build generated its route types and passed
 TypeScript; no application types or checks were weakened.
 
-The owner explicitly authorized publication of this branch and creation of its
-PR after the initial automatic approval rejection. Publication and provider CI
-are being completed against the verified `RadimStud/tinytools` repository. The
-original P2 branch is unchanged by this follow-up.
+The owner explicitly authorized publication after the initial approval pause.
+The changes are now published and their isolated CI checks passed. The original
+P2 branch is unchanged by this follow-up.
 
 ## Handoff to the parallel ORION work
 
@@ -73,7 +83,8 @@ assistants' application operations.
 | `GET /api/apps/orion/v1/jobs/{jobId}` | `GET /v1/jobs/{jobId}` | Read the requested account-owned job. |
 | `POST /api/apps/orion/v1/jobs/{jobId}/run` | `POST /v1/jobs/{jobId}/run` | Execute diagnostic work after live authorization. |
 
-Use [orion-v1.openapi.yaml](orion-v1.openapi.yaml) and the existing signer/verifier
+Use [ORION_PLATFORM_HANDOFF.md](ORION_PLATFORM_HANDOFF.md),
+[orion-v1.openapi.yaml](orion-v1.openapi.yaml) and the existing signer/verifier
 implementation for the exact ES256 assertion, request binding, session identity,
 replay requirements, idempotency, limits and internal execution authorization.
 The informational P1 app-access response remains insufficient for service
@@ -94,9 +105,7 @@ and runtime adaptation with the ORION thread.
 
 ## Next action
 
-Publish this branch and open a draft PR against `feature/platform-p2-gateway`.
-Run the retained P2 workflow, which uses disposable
-GoTrue, PostgreSQL, Mailpit and S3-compatible storage, and inspect all results.
-Resolve any remaining failures before treating P2 acceptance as complete or
-issuing the final `ORION_PLATFORM_HANDOFF.md`. Then integrate the changes through
-the existing P1/P2 stack and the parallel ORION implementation.
+Review and integrate PR #9 through the existing P1/P2 stack. The diagnostic
+contract and provider regression checks have passed; connecting real ORION,
+production activation, paid-operation accounting and owner data migration remain
+separate application/deployment work coordinated with the ORION thread.
