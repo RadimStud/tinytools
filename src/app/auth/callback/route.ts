@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/infrastructure/supabase/server-client";
 import { authLandingPath, safeReturnPath } from "@/modules/auth/domain/return-path";
+import { authRedirectOrigin } from "@/modules/auth/domain/auth-origin";
 import { authCompletionPath } from "@/modules/auth/domain/auth-completion";
 import { services } from "@/server/services";
 
@@ -12,17 +13,19 @@ function redirectTo(path: string, origin: string) {
 }
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
+  const origin = authRedirectOrigin(url.origin);
+  if (!origin) return NextResponse.json({ error: "Authentication origin is not configured." }, { status: 503, headers: { "Cache-Control": "no-store" } });
   const code = url.searchParams.get("code");
-  if (!code) return redirectTo("/login?error=Missing%20authentication%20code", url.origin);
+  if (!code) return redirectTo("/login?error=Missing%20authentication%20code", origin);
   try {
     const supabase = await createSupabaseServerClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) return redirectTo(authErrorPath, url.origin);
+    if (error) return redirectTo(authErrorPath, origin);
     const user = await services.auth.syncCurrentUser();
-    if (!user) return redirectTo(authErrorPath, url.origin);
+    if (!user) return redirectTo(authErrorPath, origin);
   } catch {
     console.error("Authentication callback failed.");
-    return redirectTo(authErrorPath, url.origin);
+    return redirectTo(authErrorPath, origin);
   }
-  return redirectTo(authCompletionPath(safeReturnPath(url.searchParams.get("next"), authLandingPath())), url.origin);
+  return redirectTo(authCompletionPath(safeReturnPath(url.searchParams.get("next"), authLandingPath())), origin);
 }

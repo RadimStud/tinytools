@@ -12,3 +12,9 @@ export function authOrigin(header: string | null): string | null {
     return url.origin;
   } catch { return null; }
 }
+
+/** Reverse proxies may expose an internal hostname; the configured portal remains authoritative. */
+export function authRedirectOrigin(requestOrigin: string): string | null {
+  if (process.env.MINIKIT_PLATFORM_ENABLED !== "1") return requestOrigin;
+  return authOrigin(process.env.MINIKIT_PLATFORM_ORIGIN ?? requestOrigin);
+}

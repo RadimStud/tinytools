@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { authRedirectOrigin } from "@/modules/auth/domain/auth-origin";
 import { safeReturnPath } from "@/modules/auth/domain/return-path";
 
 export async function updateSupabaseSession(request: NextRequest) {
@@ -22,8 +23,9 @@ export async function updateSupabaseSession(request: NextRequest) {
   const privatePage = /^(?:\/dashboard|\/admin|\/superuser|\/account|\/apps|\/platform|\/publish)(?:\/|$)/.test(path);
   if (process.env.MINIKIT_PLATFORM_ENABLED === "1" && privatePage && (error || !data?.claims?.sub)) {
     // Optimistic denial only; every page/service still verifies the account and permissions.
-    // Derive next from the real request, never a client-supplied identity/redirect header.
-    const login = new URL("/login", request.nextUrl.origin);
+    const origin = authRedirectOrigin(request.nextUrl.origin);
+    if (!origin) return NextResponse.json({ error: "Authentication origin is not configured." }, { status: 503, headers: { "Cache-Control": "no-store" } });
+    const login = new URL("/login", origin);
     login.searchParams.set("next", safeReturnPath(path + request.nextUrl.search, "/apps"));
     const denied = NextResponse.redirect(login);
     denied.headers.set("Cache-Control", "private, no-store");
