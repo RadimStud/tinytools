@@ -1,15 +1,23 @@
 import fs from "node:fs";
 import postgres from "postgres";
-import type { FullResult, Reporter, TestCase, TestResult } from "@playwright/test/reporter";
+import type { FullResult, Reporter, TestCase, TestResult, TestStep } from "@playwright/test/reporter";
 
 /** Only counts, fixed route names and status codes leave this disposable environment. */
 export default class StatusReporter implements Reporter {
   private rows: { title: string; status: string; duration_ms: number }[] = [];
   private diagnostics: string[] = [];
   onStdErr(chunk: string | Buffer) {
-    const codes = String(chunk).match(/P2_AUTH_(?:STATUS_\d{3}_[A-Za-z0-9_]+|TRACE_[a-z_]+_\d{3}_[A-Z]+|TRANSPORT_FAILURE)/g);
+    const codes = String(chunk).match(/P2_(?:AUTH_(?:STATUS_\d{3}_[A-Za-z0-9_]+|TRACE_[a-z_]+_\d{3}_[A-Z]+|TRANSPORT_FAILURE)|CHECK_[A-Z_0-9]+)/g);
     if (codes) for (const code of codes) this.diagnostics.push(code);
     if (String(chunk).includes("Authentication callback failed.")) this.diagnostics.push("Callback threw a redacted error");
+  }
+  onStepEnd(_test: TestCase, _result: TestResult, step: TestStep) {
+    if (step.error && step.location) {
+      this.diagnostics.push(`Failed step: ${step.category} ${step.location.file.split("/").slice(-2).join("/")}:${step.location.line}`);
+      const matcher = step.error as { matcherResult?: { name?: unknown; actual?: unknown; expected?: unknown } };
+      const m = matcher.matcherResult;
+      if (m && typeof m.actual === "number" && typeof m.expected === "number") this.diagnostics.push(`Numeric assertion: ${m.actual} versus ${m.expected}`);
+    }
   }
   onTestEnd(test: TestCase, result: TestResult) {
     this.rows.push({ title: test.title, status: result.status, duration_ms: result.duration });
@@ -21,13 +29,7 @@ export default class StatusReporter implements Reporter {
         for (const value of urls) {
           try {
             const u = new URL(value);
-            if (["/apps", "/login", "/signup", "/auth/callback", "/auth/complete", "/account/password", "/auth/v1/verify"].includes(u.pathname)) {
-              this.diagnostics.push("Observed assertion page: " + u.pathname);
-              if (u.pathname === "/login") {
-                const e = u.searchParams.get("error");
-                this.diagnostics.push(e === "Missing authentication code" ? "Callback code missing" : e?.startsWith("Authentication could not") ? "Callback rejected session" : u.searchParams.has("next") ? "Private-page session rejected" : "Login without recognized error");
-              }
-            }
+            if (["/apps", "/login", "/signup", "/auth/callback", "/auth/complete", "/account/password"].includes(u.pathname)) this.diagnostics.push("Observed assertion page: " + u.pathname);
           } catch { /* Never print the original error. */ }
         }
       }
@@ -40,7 +42,7 @@ export default class StatusReporter implements Reporter {
       if (url.hostname === "127.0.0.1" && url.port === "54329" && url.pathname === "/minikit_platform_e2e") {
         const sql = postgres(url.toString(), { max: 1, connect_timeout: 5 });
         try {
-          const counts = await sql`SELECT (SELECT count(*)::int FROM auth.users) AS registered, (SELECT count(*)::int FROM auth.users WHERE email_confirmed_at IS NOT NULL) AS confirmed, (SELECT count(*)::int FROM auth.sessions) AS sessions, (SELECT count(*)::int FROM public.users) AS mapped`;
+          const counts = await sql`SELECT (SELECT count(*)::int FROM auth.users) AS registered, (SELECT count(*)::int FROM auth.users WHERE email_confirmed_at IS NOT NULL) AS confirmed, (SELECT count(*)::int FROM auth.sessions) AS sessions, (SELECT count(*)::int FROM public.users) AS mapped, (SELECT count(*)::int FROM public.app_access) AS grants, (SELECT count(*)::int FROM public.tools) AS tools, (SELECT count(*)::int FROM public.tool_versions WHERE file_key IS NOT NULL) AS uploaded_versions`;
           this.diagnostics.push("Disposable provider counts: " + JSON.stringify(counts[0]));
         } catch { this.diagnostics.push("Disposable counts unavailable"); }
         finally { await sql.end(); }
