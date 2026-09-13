@@ -20,10 +20,12 @@ for (const [label, changes] of [
 ] as const) {
   test(`running service rejects ${label} before execution authorization`, async () => {
     const now = Math.floor(Date.now() / 1000);
-    const token = await new SignJWT({ iss: config.MINIKIT_IDENTITY_ISSUER, aud: "orion", sub: randomUUID(), sid: randomUUID(),
+    // These fixtures intentionally replace one valid claim with invalid input.
+    const payload = Object.assign({ iss: config.MINIKIT_IDENTITY_ISSUER, aud: "orion", sub: randomUUID(), sid: randomUUID(),
       iat: now, exp: now + 45, jti: randomUUID(), request_id: randomUUID(), app_id: "orion", permissions: ["orion.use"],
-      policy_version: 1, v: CONTRACT, htm: "GET", htu: "/v1/context", body_sha256: digest(""), idempotency_key: null, ...changes,
-    }).setProtectedHeader({ alg: "ES256", kid: privateJwk.kid, typ: "minikit-service+jwt" }).sign(await importJWK(privateJwk, "ES256"));
+      policy_version: 1, v: CONTRACT, htm: "GET", htu: "/v1/context", body_sha256: digest(""), idempotency_key: null,
+    }, changes);
+    const token = await new SignJWT(payload).setProtectedHeader({ alg: "ES256", kid: privateJwk.kid, typ: "minikit-service+jwt" }).sign(await importJWK(privateJwk, "ES256"));
     const response = await fetch(config.ORION_INTERNAL_ORIGIN + "/v1/context", { headers: { Authorization: `Bearer ${token}` } });
     expect(response.status).toBe(401);
     expect(await response.json()).toEqual({ error: "invalid_service_identity" });
