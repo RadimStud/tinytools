@@ -75,7 +75,9 @@ test("real browser Market upload, publication, anonymous download and archive", 
   await page.getByRole("button", { name: "Save draft", exact: true }).click();
   await expect(page.getByText("Draft created successfully.", { exact: true })).toBeVisible();
   console.error("P2_CHECK_MARKET_DRAFT");
-  await page.getByRole("article", { name, exact: true }).getByRole("link", { name: "Manage →" }).click(); const manage = page.url();
+  await page.getByRole("article", { name, exact: true }).getByRole("link", { name: "Manage →" }).click();
+  await expect(page).toHaveURL(/\/dashboard\/tools\/[0-9a-f-]{36}$/);
+  const manage = page.url();
   await page.getByLabel("Full description").fill("A deterministic fixture for local storage integration, not a public product.");
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
   await expect(page.getByText("Tool updated successfully.", { exact: true })).toBeVisible();
@@ -105,9 +107,8 @@ test("real browser Market upload, publication, anonymous download and archive", 
   await b.page.goto(manage); await expect(b.page.getByLabel("Full description")).toHaveCount(0);
   await page.goto(manage); await page.getByRole("button", { name: "Archive tool", exact: true }).click();
   await expect(page.getByLabel("Status archived")).toBeVisible();
-  // A failed assertion must remain visible rather than being masked by a failing
-  // cleanup click. All database and object data are discarded with this isolated
-  // Compose project; this suite cannot run against production.
+  // All data belongs to the disposable Compose project; assertion errors must
+  // not be masked by a failing best-effort cleanup against another page.
 });
 
 test("real logout clears another tab and the next login belongs only to B", async () => {
