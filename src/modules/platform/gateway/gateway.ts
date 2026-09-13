@@ -15,6 +15,7 @@ export class OrionGateway {
     const prefix = "/api/apps/orion";
     if (url.search || !url.pathname.startsWith(prefix + "/") || /[%\\]/.test(url.pathname)) throw new PlatformError(404, "operation_not_supported");
     const route = operationRoute(request.method, url.pathname.slice(prefix.length));
+    if (request.signal.aborted) throw new PlatformError(504, "app_timeout");
     const session = await this.dependencies.session();
     if (!session) throw new PlatformError(401, "unauthenticated");
     await this.dependencies.policy.authorize(session);
@@ -39,6 +40,8 @@ export class OrionGateway {
     const policy = await this.dependencies.policy.authorize(session);
     const token = await this.dependencies.sign({ session, policyVersion: policy.policy_version,
       method: route.method, path: route.path, body, requestId, idempotencyKey });
+    // Abort events are not replayed for listeners attached after a disconnect.
+    if (request.signal.aborted) throw new PlatformError(504, "app_timeout");
     const headers = new Headers({ Accept: "application/json", Authorization: `Bearer ${token}`, "X-Request-Id": requestId });
     if (route.method === "POST") { headers.set("Content-Type", "application/json"); headers.set("Idempotency-Key", idempotencyKey!); }
     // Reconstructed header set: browser Cookie/Authorization/identity/forwarded headers never pass through.
@@ -68,6 +71,10 @@ export class OrionGateway {
       try { result = JSON.parse(text); } catch { throw new PlatformError(502, "invalid_app_response"); }
       const parsed = (route.kind === "context" ? contextResult : jobResult).safeParse(result);
       if (!parsed.success || parsed.data.subject !== session.subject) throw new PlatformError(502, "invalid_app_response");
+      if (route.jobId && (!("id" in parsed.data) || parsed.data.id !== route.jobId)) throw new PlatformError(502, "invalid_app_response");
+      // Context describes this authorization. Stored jobs may retain the policy
+      // version under which they were created, even after a legitimate regrant.
+      if (route.kind === "context" && parsed.data.policy_version !== policy.policy_version) throw new PlatformError(502, "invalid_app_response");
       // Suppress a completed result if access/session was revoked while the service was running.
       await this.dependencies.policy.authorize(session, policy.policy_version);
       return parsed.data;

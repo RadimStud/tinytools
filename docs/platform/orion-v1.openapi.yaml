@@ -115,7 +115,10 @@ paths:
   /api/apps/orion/v1/context:
     get:
       operationId: applicationContext
-      description: Maps only to GET /v1/context on the fixed configured service origin. No query parameters.
+      description: >-
+        Maps only to GET /v1/context on the fixed configured service origin. No
+        query parameters. The returned subject and policy_version must match
+        the current signed request; otherwise the gateway rejects the response.
       responses:
         '200':
           description: Signature-verified service context for the requesting account.
@@ -275,7 +278,11 @@ components:
                 properties:
                   code: {type: string}
     Job:
-      description: An account-owned diagnostic job. Private/no-store. No service credentials in the result.
+      description: >-
+        An account-owned diagnostic job. For read/run, id must equal the requested
+        jobId. A stored job may retain its original policy_version; current access
+        is still rechecked before returning it. Private/no-store. No service
+        credentials in the result.
       content:
         application/json:
           schema:

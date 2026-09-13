@@ -67,6 +67,56 @@ describe("fixed-target gateway", () => {
     deps.policy.authorize.mockResolvedValueOnce({ policy_version: 1 }).mockResolvedValueOnce({ policy_version: 1 }).mockRejectedValueOnce(new PlatformError(403, "access_denied"));
     await expect(gateway.handle(request(), randomUUID())).rejects.toMatchObject({ status: 403 });
   });
+  it.each([[2, 1], [1, 2]])("rejects context from policy %s when the service returns policy %s", async (current, returned) => {
+    const { gateway, deps } = setup();
+    deps.policy.authorize.mockResolvedValue({ policy_version: current });
+    deps.fetcher.mockResolvedValue(Response.json({ ...context(), policy_version: returned }));
+    await expect(gateway.handle(request(), randomUUID())).rejects.toMatchObject({ code: "invalid_app_response" });
+  });
+  it.each(["read", "run"])("rejects another job belonging to the same account during %s", async kind => {
+    const { gateway, deps } = setup();
+    const id = randomUUID();
+    deps.fetcher.mockResolvedValue(Response.json({ id: randomUUID(), subject: a, state: "completed",
+      operation: "contract.echo", output: { text: "Another job" }, policy_version: 1 }));
+    const init = kind === "run" ? { method: "POST", headers: { Origin: origin,
+      "Content-Type": "application/json", "Idempotency-Key": randomUUID() }, body: "{}" } : {};
+    await expect(gateway.handle(request(`/v1/jobs/${id}${kind === "run" ? "/run" : ""}`, init), randomUUID()))
+      .rejects.toMatchObject({ code: "invalid_app_response" });
+  });
+  it.each(["read", "run"])("returns the requested job during %s", async kind => {
+    const { gateway, deps } = setup();
+    const id = randomUUID();
+    const result = { id, subject: a, state: "completed", operation: "contract.echo", output: { text: "Requested job" }, policy_version: 1 };
+    deps.fetcher.mockResolvedValue(Response.json(result));
+    const init = kind === "run" ? { method: "POST", headers: { Origin: origin,
+      "Content-Type": "application/json", "Idempotency-Key": randomUUID() }, body: "{}" } : {};
+    await expect(gateway.handle(request(`/v1/jobs/${id}${kind === "run" ? "/run" : ""}`, init), randomUUID())).resolves.toEqual(result);
+  });
+  it("reads an existing job after a legitimate policy change while checking current access", async () => {
+    const { gateway, deps } = setup();
+    const id = randomUUID();
+    deps.policy.authorize.mockResolvedValue({ policy_version: 3 });
+    const result = { id, subject: a, state: "queued", operation: "contract.echo", output: null, policy_version: 1 };
+    deps.fetcher.mockResolvedValue(Response.json(result));
+    await expect(gateway.handle(request(`/v1/jobs/${id}`), randomUUID())).resolves.toEqual(result);
+    expect(deps.policy.authorize).toHaveBeenLastCalledWith({ subject: a, sessionId: b }, 3);
+  });
+  it("does not authorize or dispatch an already cancelled browser request", async () => {
+    const { gateway, deps } = setup();
+    const controller = new AbortController(); controller.abort();
+    await expect(gateway.handle(request("/v1/context", { signal: controller.signal }), randomUUID()))
+      .rejects.toMatchObject({ code: "app_timeout" });
+    expect(deps.policy.authorize).not.toHaveBeenCalled();
+    expect(deps.sign).not.toHaveBeenCalled(); expect(deps.fetcher).not.toHaveBeenCalled();
+  });
+  it("does not dispatch if the browser disconnects while identity is being signed", async () => {
+    const { gateway, deps } = setup();
+    const controller = new AbortController();
+    deps.sign.mockImplementation(async () => { controller.abort(); return "unused-assertion"; });
+    await expect(gateway.handle(request("/v1/context", { signal: controller.signal }), randomUUID()))
+      .rejects.toMatchObject({ code: "app_timeout" });
+    expect(deps.fetcher).not.toHaveBeenCalled();
+  });
   it("enforces the actual streaming request limit", async () => {
     await expect(boundedText(new Blob(["x".repeat(33_000)]).stream(), 32_768)).rejects.toMatchObject({ status: 413 });
   });
