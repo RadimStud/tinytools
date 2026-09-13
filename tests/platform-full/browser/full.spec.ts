@@ -1,10 +1,10 @@
-import fs from "node:fs/promises";
+import fs from "node:fs";
 import { randomBytes, randomUUID } from "node:crypto";
 import { test, expect, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import postgres from "postgres";
 
 // This suite uses disposable accounts and local providers only. Never load application dotenv files.
-const config = JSON.parse(await fs.readFile(".p2-local/test.json", "utf8"));
+const config = JSON.parse(fs.readFileSync(".p2-local/test.json", "utf8"));
 const db = new URL(config.DATABASE_URL);
 if (db.hostname !== "127.0.0.1" || db.port !== "54329" || db.pathname !== "/minikit_platform_e2e" || config.MINIKIT_DEPLOYMENT_ENV !== "isolated-test") throw new Error("Disposable local environment required.");
 const sql = postgres(config.DATABASE_URL, { max: 2, prepare: false });

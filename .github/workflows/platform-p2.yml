@@ -1,9 +1,8 @@
 name: Platform P2 real-provider integration
 on:
-  push:
-    branches: [feature/platform-p2-gateway]
+  workflow_dispatch:
   pull_request:
-    paths: ['src/**', 'tests/**', 'scripts/p2-local.mjs', 'drizzle/**', 'package*.json', 'playwright.platform-full.config.ts', '.github/workflows/platform-p2.yml']
+    paths: ['src/**', 'tests/**', 'scripts/p2-local.mjs', 'drizzle*', 'drizzle/**', 'package*.json', 'playwright.platform-full.config.ts', '.github/workflows/platform-p2.yml']
 permissions:
   contents: read
 concurrency:
@@ -22,7 +21,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        id: storage-cache
         with:
           path: /tmp/minikit-p2-minio.tar
           key: p2-minio-${{ runner.os }}-${{ hashFiles('tests/platform-full/Minio.Dockerfile') }}
@@ -35,6 +35,11 @@ jobs:
             docker compose --env-file .p2-local/docker.env -p minikit-p2-isolated -f tests/platform-full/compose.yml build storage
             docker save minikit-p2-isolated-storage -o /tmp/minikit-p2-minio.tar
           fi
+      - uses: actions/cache/save@v4
+        if: steps.storage-cache.outputs.cache-hit != 'true'
+        with:
+          path: /tmp/minikit-p2-minio.tar
+          key: p2-minio-${{ runner.os }}-${{ hashFiles('tests/platform-full/Minio.Dockerfile') }}
       - run: docker compose --env-file .p2-local/docker.env -p minikit-p2-isolated -f tests/platform-full/compose.yml up -d --wait
       - run: node scripts/p2-local.mjs seed
       - run: node scripts/p2-local.mjs build
