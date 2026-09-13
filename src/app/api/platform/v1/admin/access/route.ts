@@ -16,7 +16,7 @@ export async function PUT(request: Request) {
       stage = "WRITE";
       return await service.changeAccess(input, requestId);
     } catch (error) {
-      if (!(error instanceof PlatformError)) console.error("Platform failure stage: " + stage);
+      if (!(error instanceof PlatformError)) console.error("Platform failure category: STAGE_" + stage);
       throw error;
     }
   });
