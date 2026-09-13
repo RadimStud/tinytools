@@ -19,18 +19,23 @@ external service; its existing single-owner authentication remains mandatory.
 
 ## Deployment
 
-1. Deploy `RadimStud/ORION` using its existing Docker image, one running instance,
-   and persistent storage at `/app/data`. Use a fresh volume for this web instance.
-2. Set a random `ORION_WEB_PASSWORD` of at least 16 characters and
-   `ORION_WEB_ORIGIN` to the actual HTTPS origin. Keep credentials in the host's
-   secret settings. Do not put the password in this URL or in MiniKit.
-3. Verify `/health`, the login screen, rejection of unauthenticated API calls,
-   and authenticated use of the assistant before setting `ORION_WEB_URL`.
+1. Deploy the private `RadimStud/ORION` repository as its own Flask project in the
+   **existing Vercel account**. Reuse the existing Supabase PostgreSQL database
+   and private R2 bucket. The owner adapter, explicit database migration and
+   environment instructions live in that repository's `docs/VERCEL_OWNER_WEB.md`.
+   Do not copy private ORION source into this public repository.
+2. Set ORION's exact HTTPS origin, separate random password (at least 24
+   characters), server-selected owner Auth UUID and private database/storage
+   credentials in its Vercel project. Add its origin to the existing R2 CORS
+   rules while preserving MiniKit's rules. Preview uses a separate namespace
+   and password. Do not put credentials in this URL or in MiniKit client code.
+3. Verify sign-in, rejection of unauthenticated API calls, all six offline
+   profiles, restart persistence, and direct R2 import/export above 4.5 MB before
+   setting `ORION_WEB_URL`. Paid agent calls remain disabled until P2 exists.
 4. Set that verified origin in MiniKit and redeploy. Confirm the button appears
    for the superuser and the direct entry is denied to a normal account.
 
-This change does not deploy a Python server, configure a hosting account, or
-activate the separate platform P1/P2 branch. Actual ORION hosting is a required
-deployment step. The existing ORION `deploy/compose.yaml` supports a server with
-Docker and Caddy; a managed Docker host can run the same image with persistent
-storage and its HTTPS proxy.
+The launch link does not itself deploy ORION or activate the separate P1/P2
+branch. A successful ORION deployment and its verified HTTPS origin are still
+required. The local Docker/desktop entrypoints remain independent; deployment
+for this integration uses Vercel and the existing storage services.
