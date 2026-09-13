@@ -1,0 +1,47 @@
+name: Platform P1 isolated checks
+on:
+  push:
+    branches: ['feature/platform-p1-accounts']
+  pull_request:
+    paths: ['src/**', 'tests/platform/**', 'drizzle/**', 'scripts/platform-db.mjs', 'vitest.platform.config.ts', 'playwright.platform.config.ts', '.github/workflows/platform-p1.yml']
+permissions:
+  contents: read
+jobs:
+  isolated-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: isolated-test-only
+          POSTGRES_DB: minikit_platform_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PLATFORM_TEST_DATABASE_URL: postgresql://postgres:isolated-test-only@127.0.0.1:5432/minikit_platform_test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run --config=vitest.platform.config.ts
+      - run: npx playwright install chromium --with-deps
+      - run: npx playwright test --config=playwright.platform.config.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: platform-p1-isolated-results
+          path: |
+            playwright-report/platform-browser/
+            test-results/platform-browser/
+          retention-days: 7
