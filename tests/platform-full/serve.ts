@@ -15,9 +15,17 @@ const proxy = createServer(async (req, res) => {
     const out = await fetch("http://127.0.0.1:54326" + req.url.slice("/auth/v1".length), {
       method: req.method, headers: h, body: buffers.length ? Buffer.concat(buffers) : undefined, redirect: "manual", signal: AbortSignal.timeout(8000),
     });
+    const result = Buffer.from(await out.arrayBuffer());
+    if (!out.ok && out.status >= 400) {
+      try {
+        const payload = JSON.parse(result.toString("utf8"));
+        const code = String(payload.error_code ?? payload.code ?? "unknown");
+        console.error("Local Auth ingress failure", out.status, /^[a-z0-9_]{1,80}$/i.test(code) ? code : "unknown");
+      } catch { console.error("Local Auth ingress failure", out.status); }
+    }
     for (const name of ["content-type", "location", "cache-control"]) { const v = out.headers.get(name); if (v) res.setHeader(name, v); }
-    res.writeHead(out.status); res.end(Buffer.from(await out.arrayBuffer()));
-  } catch { res.writeHead(503); res.end(); }
+    res.writeHead(out.status); res.end(result);
+  } catch { console.error("Local Auth transport failure"); res.writeHead(503); res.end(); }
 });
 proxy.listen(54321, "127.0.0.1");
 const children = [
