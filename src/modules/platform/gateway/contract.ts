@@ -29,14 +29,14 @@ export const jobResult = z.object({ id: uuid, subject: uuid, state: z.enum(["que
   policy_version: z.number().int().positive(),
 }).strict();
 export function digest(body: string | Uint8Array): string { return createHash("sha256").update(body).digest("hex"); }
-export type OperationRoute = { method: "GET" | "POST"; path: string; kind: "context" | "create" | "read" | "run" };
+export type OperationRoute = { method: "GET" | "POST"; path: string; kind: "context" | "create" | "read" | "run"; jobId?: string };
 export function operationRoute(method: string, path: string): OperationRoute {
   if (method === "GET" && path === "/v1/context") return { method, path, kind: "context" };
   if (method === "POST" && path === "/v1/jobs") return { method, path, kind: "create" };
   const job = /^\/v1\/jobs\/([0-9a-f-]{36})(\/run)?$/.exec(path);
   if (job && uuid.safeParse(job[1]).success) {
-    if (method === "GET" && !job[2]) return { method, path, kind: "read" };
-    if (method === "POST" && job[2]) return { method, path, kind: "run" };
+    if (method === "GET" && !job[2]) return { method, path, kind: "read", jobId: job[1] };
+    if (method === "POST" && job[2]) return { method, path, kind: "run", jobId: job[1] };
   }
   throw new PlatformError(["GET", "POST"].includes(method) ? 404 : 405, "operation_not_supported");
 }

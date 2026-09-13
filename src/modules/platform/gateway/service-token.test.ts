@@ -60,11 +60,13 @@ describe("service assertion contract", () => {
     await expect(verify(token, binding)).rejects.toBeDefined();
   });
   it("caps useful lifetime at 48 seconds including clock tolerance", async () => {
-    const now = Math.floor(Date.now() / 1000); const token = await issue({ iat: now, exp: now + 45 });
+    const now = 1_800_000_000; const token = await issue({ iat: now, exp: now + 45 });
+    const atIssue = { ...binding, now: new Date(now * 1000) };
     await verifier()(token, { ...binding, now: new Date((now + 47) * 1000) });
     await expect(verifier()(token, { ...binding, now: new Date((now + 48) * 1000) })).rejects.toBeDefined();
-    await expect(verifier()(await issue({ exp: now + 60 }), binding)).rejects.toBeDefined();
-    await expect(verifier()(await issue({ iat: now + 4, exp: now + 49 }), binding)).rejects.toBeDefined();
+    await expect(verifier()(await issue({ iat: now, exp: now + 60 }), atIssue)).rejects.toBeDefined();
+    await verifier()(await issue({ iat: now + 3, exp: now + 48 }), atIssue);
+    await expect(verifier()(await issue({ iat: now + 4, exp: now + 49 }), atIssue)).rejects.toBeDefined();
   });
   it("supports overlapping public keys for rotation without distributing private keys", async () => {
     const pair = await generateKeyPair("ES256", { extractable: true });

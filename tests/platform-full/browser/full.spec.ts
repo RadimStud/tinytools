@@ -134,6 +134,19 @@ test("real recovery email updates a password without creating another account", 
   await page.getByRole("button", { name: "Update password", exact: true }).click();
   await expect(page.getByText("Password updated.", { exact: true })).toBeVisible();
   const me = (await (await c.request.get("/api/platform/v1/me")).json()).data; expect(me.subject).toBe(b.subject);
+  // GoTrue revokes B's earlier sessions when the recovery password is changed.
+  // Prove the stale browser is denied before establishing its new session.
+  expect((await b.context.request.get(gateway + "/context")).status()).toBe(401);
+  expect((await b.context.request.get("/api/superuser/files")).status()).toBe(401);
+  await b.page.goto("/login?next=%2Fapps");
+  await b.page.getByLabel("Email", { exact: true }).fill(b.email);
+  await b.page.getByLabel("Password", { exact: true }).fill(b.password);
+  await b.page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(b.page).toHaveURL(origin + "/apps");
+  await expect(b.page.getByRole("heading", { name: "My apps", exact: true })).toBeVisible();
+  const refreshed = await b.context.request.get(gateway + "/context");
+  expect(refreshed.status()).toBe(200);
+  expect((await refreshed.json()).data.subject).toBe(b.subject);
 });
 
 test("ordinary accounts cannot use the owner vault and ORION stays coming soon", async () => {
