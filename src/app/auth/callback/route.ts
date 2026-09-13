@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/infrastructure/supabase/server-client";
-import { safeReturnPath, authLandingPath } from "@/modules/auth/domain/return-path";
+import { authLandingPath, safeReturnPath } from "@/modules/auth/domain/return-path";
+import { authCompletionPath } from "@/modules/auth/domain/auth-completion";
 import { services } from "@/server/services";
 
 const authErrorPath = "/login?error=Authentication%20could%20not%20be%20completed.%20Please%20sign%20in%20again.";
@@ -23,5 +24,5 @@ export async function GET(request: NextRequest) {
     console.error("Authentication callback failed.");
     return redirectTo(authErrorPath, url.origin);
   }
-  return redirectTo(safeReturnPath(url.searchParams.get("next"), authLandingPath()), url.origin);
+  return redirectTo(authCompletionPath(safeReturnPath(url.searchParams.get("next"), authLandingPath())), url.origin);
 }

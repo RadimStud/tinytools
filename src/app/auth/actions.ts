@@ -2,9 +2,11 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/infrastructure/supabase/server-client";
 import { services } from "@/server/services";
 import { authLandingPath, safeReturnPath } from "@/modules/auth/domain/return-path";
+import { authCompletionPath } from "@/modules/auth/domain/auth-completion";
 import { authOrigin } from "@/modules/auth/domain/auth-origin";
 
 function text(data: FormData, name: string) { return String(data.get(name) ?? ""); }
@@ -12,6 +14,10 @@ function fail(page: string, message: string, next?: string): never {
   const query = new URLSearchParams({ error: message });
   if (next) query.set("next", next);
   redirect(`${page}?${query}`);
+}
+function complete(next: string): never {
+  revalidatePath("/", "layout");
+  redirect(authCompletionPath(next));
 }
 
 export async function login(formData: FormData) {
@@ -25,7 +31,7 @@ export async function login(formData: FormData) {
     ok = !error && !!await services.auth.syncCurrentUser();
   } catch { /* Do not expose upstream errors or supplied credentials. */ }
   if (!ok) fail("/login", "Sign in could not be completed. Check your credentials and try again.", next);
-  redirect(next);
+  complete(next);
 }
 
 export async function signup(formData: FormData) {
@@ -52,15 +58,19 @@ export async function signup(formData: FormData) {
     }
   } catch { /* Generic response only. No roles are read from user metadata. */ }
   if (!ok) fail("/signup", "Registration could not be completed. Please try again later.", next);
-  if (signedIn) redirect(next);
+  if (signedIn) complete(next);
   redirect(`/signup/check-email?${new URLSearchParams({ email, next })}`);
 }
 
 export async function logout() {
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.signOut({ scope: "global" });
-  if (error) fail("/account", "Sign out could not be completed. Please try again.");
-  redirect("/");
+  let ok = false;
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.auth.signOut({ scope: "global" });
+    ok = !error;
+  } catch { /* Keep the failure explicit; do not pretend revocation succeeded. */ }
+  if (!ok) fail("/account", "Sign out could not be completed. Please try again.");
+  complete("/");
 }
 
 export async function requestPasswordReset(formData: FormData) {
@@ -88,5 +98,5 @@ export async function updatePassword(formData: FormData) {
     ok = !error;
   } catch { /* Do not put auth diagnostics into the browser. */ }
   if (!ok) fail("/account/password", "Password could not be updated. Sign in again or request a fresh recovery link.");
-  redirect("/account/password?saved=1");
+  complete("/account/password?saved=1");
 }
